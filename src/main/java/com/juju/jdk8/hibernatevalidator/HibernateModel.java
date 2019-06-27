@@ -1,4 +1,4 @@
-package com.juju.beautiful.jdk8.hibernatevalidator;
+package com.juju.jdk8.hibernatevalidator;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

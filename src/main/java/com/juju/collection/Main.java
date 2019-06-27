@@ -1,4 +1,4 @@
-package com.juju.beautiful.collection;
+package com.juju.collection;
 
 import java.util.ArrayList;
 import java.util.HashMap;

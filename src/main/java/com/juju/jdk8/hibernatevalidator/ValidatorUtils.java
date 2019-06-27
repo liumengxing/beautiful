@@ -1,4 +1,4 @@
-package com.juju.beautiful.jdk8.hibernatevalidator;
+package com.juju.jdk8.hibernatevalidator;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.Validation;

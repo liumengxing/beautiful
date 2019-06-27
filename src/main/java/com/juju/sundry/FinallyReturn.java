@@ -1,4 +1,4 @@
-package com.juju.beautiful.sundry;
+package com.juju.sundry;
 
 /**
  * @author juju
