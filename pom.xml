@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>juju</groupId>
+    <groupId>com.juju</groupId>
     <artifactId>beautiful</artifactId>
     <version>1.0-SNAPSHOT</version>
 
@@ -48,12 +48,6 @@
             <artifactId>slf4j-log4j12</artifactId>
             <version>1.8.0-alpha2</version>
         </dependency>
-        <!--使用java自带logg,修改pom文件即可-->
-        <!--<dependency>-->
-            <!--<groupId>org.slf4j</groupId>-->
-            <!--<artifactId>slf4j-jdk14</artifactId>-->
-            <!--<version>1.8.0-alpha2</version>-->
-        <!--</dependency>-->
 
         <!--*************有单独Test文件   end*************-->
     </dependencies>
