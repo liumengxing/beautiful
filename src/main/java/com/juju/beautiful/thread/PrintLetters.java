@@ -1,4 +1,4 @@
-package com.juju.thread;
+package com.juju.beautiful.thread;
 
 public class PrintLetters {
     // 已经打印得元音个数

@@ -1,4 +1,4 @@
-package com.juju.sundry;
+package com.juju.beautiful.sundry;
 
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
