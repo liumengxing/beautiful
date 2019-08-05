@@ -1,25 +1,49 @@
 package com.juju.beautiful.thread;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import java.util.concurrent.ThreadFactory;
+
 public class PrintLetters {
-    // 已经打印得元音个数
+    /**
+     * 已经打印得元音个数
+     */
     private static int countOne = 0;
-    // 已经打印得辅音个数
+    /**
+     * 已经打印得辅音个数
+     */
     private static int countTwo = 0;
-    // 打印总次数
+    /**
+     * 打印总次数
+     */
     private static int totalCount = 50;
-    // 当前获得锁得线程，true打印元音，false打印辅音
+    /**
+     * 当前获得锁得线程，true打印元音，false打印辅音
+     */
     private static volatile boolean flag = true;
 
-    // 元音数组
+    /**
+     * 元音数组
+     */
     private static String[] arrayOne = new String[]{"a", "e", "i", "o", "u"};
-    // 辅音数组，只写了部分
+    /**
+     * 辅音数组，只写了部分
+     */
     private static String[] arrayTwo = new String[]{"b", "c", "d", "f", "g", "h", "j", "k", "l", "m", "n", "x", "y", "z"};
-    // 元音数组长度
-    private final static int sizeOne = arrayOne.length;
-    // 辅音数组长度
-    private final static int sizeTwo = arrayTwo.length;
+    /**
+     * 元音数组长度
+     */
+    private final static int SIZE_ONE = arrayOne.length;
+    /**
+     * 辅音数组长度
+     */
+    private final static int SIZE_TWO = arrayTwo.length;
 
     public static void main(String[] args) {
+        ThreadFactory printLettersThreadFactory = new ThreadFactoryBuilder()
+                .setNameFormat("printLetters-threadpool-%d").build();
+
+
         Thread threadOne = new Thread(() -> {
             while (countOne < totalCount) {
                 if (flag) {
@@ -28,7 +52,7 @@ public class PrintLetters {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    System.out.println(String.format("元音%s", arrayOne[countOne++ % sizeOne]));
+                    System.out.println(String.format("元音%s", arrayOne[countOne++ % SIZE_ONE]));
                     flag = false;
                 }
             }
@@ -42,7 +66,7 @@ public class PrintLetters {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    System.out.println(String.format("辅音%s", arrayTwo[countTwo++ % sizeTwo]));
+                    System.out.println(String.format("辅音%s", arrayTwo[countTwo++ % SIZE_TWO]));
                     flag = true;
                 }
             }
