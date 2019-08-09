@@ -1,7 +1,7 @@
 package com.juju.beautiful.unittest;
 
-import com.juju.beautiful.jdk8.hibernatevalidator.HibernateModel;
-import com.juju.beautiful.jdk8.hibernatevalidator.ValidatorUtils;
+import com.juju.common.validator.HibernateModel;
+import com.juju.common.validator.ValidatorUtils;
 import org.junit.Test;
 
 import java.lang.reflect.Method;

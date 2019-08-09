@@ -22,18 +22,6 @@
             <version>1.2.35</version>
         </dependency>
 
-        <!--@NotBlank/@Past-->
-        <dependency>
-            <groupId>org.hibernate.validator</groupId>
-            <artifactId>hibernate-validator</artifactId>
-            <version>6.0.10.Final</version>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish</groupId>
-            <artifactId>javax.el</artifactId>
-            <version>3.0.1-b09</version>
-        </dependency>
-
         <!--@Getter/@Setter-->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -49,6 +37,12 @@
         </dependency>
 
         <!--others-->
+        <dependency>
+            <groupId>com.juju</groupId>
+            <artifactId>common</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
