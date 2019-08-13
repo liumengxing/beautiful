@@ -35,13 +35,13 @@ public class JujuArrayList<T> implements AutoCloseable {
      */
     private int elementCount;
 
-    public JujuArrayList() {
+    private JujuArrayList() {
         this.table = new Object[JujuArrayList.INIT_SIZE];
         this.size = JujuArrayList.INIT_SIZE;
         this.elementCount = 0;
     }
 
-    public void add(T element) {
+    private void add(T element) {
         // 数组中有效元素已经占了75%，扩容
         if (this.elementCount + 1 > this.size * JujuArrayList.THREHOLD) {
             expand();
@@ -64,7 +64,7 @@ public class JujuArrayList<T> implements AutoCloseable {
     public static void main(String[] args) {
         JujuArrayList<Integer> jujuArrayList = new JujuArrayList<>();
         // 测试扩容
-        IntStream.range(1, 13).forEach(i -> jujuArrayList.add(i));
+        IntStream.range(1, 13).forEach(jujuArrayList::add);
         jujuArrayList.add(2);
 
         // 测试扩容失败
@@ -78,7 +78,7 @@ public class JujuArrayList<T> implements AutoCloseable {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         this.table = null;
     }
 }
