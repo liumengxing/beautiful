@@ -2,7 +2,10 @@ package com.juju.beautiful.redis;
 
 import redis.clients.jedis.Jedis;
 
-public class one {
+/**
+ * 工作电脑上，redis测试
+ */
+public class Windows {
     private static final String REDIS_ADDR = "172.20.181.100";
 
     public static void main(String[] args) {
@@ -20,7 +23,7 @@ public class one {
         System.out.println(conn.get("date.year"));
 
         conn.decr("date.year");
-        conn.decrBy("date.year",2);
+        conn.decrBy("date.year", 2);
         System.out.println(conn.get("date.year"));
 
     }

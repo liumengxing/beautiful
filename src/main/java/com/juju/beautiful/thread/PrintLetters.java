@@ -4,6 +4,10 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.util.concurrent.ThreadFactory;
 
+/**
+ * 多线程打印字母
+ * 一个线程打印元音，一个线程打印辅音，交替打印
+ */
 public class PrintLetters {
     /**
      * 已经打印得元音个数

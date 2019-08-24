@@ -4,6 +4,12 @@ import java.io.Serializable;
 import java.lang.reflect.Constructor;
 
 /**
+ * 创建对象的方式
+ * 1、new
+ * 2、反射
+ * 3、克隆
+ * 4、反序列化
+ *
  * @author juju
  * @date 2019/04/25
  */

@@ -1,6 +1,9 @@
 package com.juju.beautiful.sundry;
 
 /**
+ * 无论try块或者catch块中是否包含return语句，都会执行finally块
+ * finally中的return会覆盖已有的返回值
+ *
  * @author juju
  * @date 2019/04/25
  */

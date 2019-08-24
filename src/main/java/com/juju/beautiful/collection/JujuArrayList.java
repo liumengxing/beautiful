@@ -4,6 +4,9 @@ import java.util.Arrays;
 import java.util.stream.IntStream;
 
 /**
+ * 实现简单的ArrayList
+ * 注意扩容
+ *
  * @param <T> 列表存放的数据类型
  * @author juju
  * @date 2019/05/27
