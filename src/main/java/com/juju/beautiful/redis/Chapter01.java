@@ -14,7 +14,7 @@ public class Chapter01 {
         new Chapter01().run();
     }
 
-    public void run() {
+    private void run() {
         Jedis conn = new Jedis("localhost");
         conn.select(15);
 
@@ -55,7 +55,7 @@ public class Chapter01 {
      * @param link
      * @return articleID
      */
-    public String postArticle(Jedis conn, String user, String title, String link) {
+    private String postArticle(Jedis conn, String user, String title, String link) {
         // string，生成articleID
         String articleId = String.valueOf(conn.incr("article:nextID"));
 
@@ -69,7 +69,7 @@ public class Chapter01 {
         // 创建文章信息（散列）
         long now = System.currentTimeMillis() / 1000;
         String article = "article:" + articleId;
-        HashMap<String, String> articleData = new HashMap<String, String>();
+        HashMap<String, String> articleData = new HashMap<>();
         articleData.put("title", title);
         articleData.put("link", link);
         articleData.put("user", user);
@@ -96,7 +96,7 @@ public class Chapter01 {
      * @param user    user:userid，此处只传了username
      * @param article article:articleID
      */
-    public void articleVote(Jedis conn, String user, String article) {
+    private void articleVote(Jedis conn, String user, String article) {
         // 文章发布一周内可以投票，超过一周不能投票
         long cutoff = (System.currentTimeMillis() / 1000) - ONE_WEEK_IN_SECONDS;
         if (conn.zscore("time:", article) < cutoff) {
@@ -113,16 +113,26 @@ public class Chapter01 {
     }
 
 
-    public List<Map<String, String>> getArticles(Jedis conn, int page) {
+    private List<Map<String, String>> getArticles(Jedis conn, int page) {
         return getArticles(conn, page, "score:");
     }
 
-    public List<Map<String, String>> getArticles(Jedis conn, int page, String order) {
+    /**
+     * 获取所有文章信息，读取postArticle中，生成的hash对象
+     *
+     * @param conn
+     * @param page  第page页，每页25篇
+     * @param order 此处直接作为key值使用
+     * @return
+     */
+    private List<Map<String, String>> getArticles(Jedis conn, int page, String order) {
         int start = (page - 1) * ARTICLES_PER_PAGE;
         int end = start + ARTICLES_PER_PAGE - 1;
 
+        // 获取第page张的25篇文章id
         Set<String> ids = conn.zrevrange(order, start, end);
-        List<Map<String, String>> articles = new ArrayList<Map<String, String>>();
+        List<Map<String, String>> articles = new ArrayList<>();
+        // 逐一读取每个id的文章
         for (String id : ids) {
             Map<String, String> articleData = conn.hgetAll(id);
             articleData.put("id", id);
@@ -132,22 +142,40 @@ public class Chapter01 {
         return articles;
     }
 
-    public void addGroups(Jedis conn, String articleId, String[] toAdd) {
+    /**
+     * 将一篇文章添加到一些分组中
+     *
+     * @param conn
+     * @param articleId 文章id
+     * @param toAdd     文章要加入的group的key
+     */
+    private void addGroups(Jedis conn, String articleId, String[] toAdd) {
         String article = "article:" + articleId;
         for (String group : toAdd) {
             conn.sadd("group:" + group, article);
         }
     }
 
-    public List<Map<String, String>> getGroupArticles(Jedis conn, String group, int page) {
+    private List<Map<String, String>> getGroupArticles(Jedis conn, String group, int page) {
         return getGroupArticles(conn, group, page, "score:");
     }
 
-    public List<Map<String, String>> getGroupArticles(Jedis conn, String group, int page, String order) {
+    /**
+     * 获取某个分组，某一页的文章信息
+     *
+     * @param conn
+     * @param group 分组名称
+     * @param page  页数
+     * @param order key值的一部分
+     * @return
+     */
+    private List<Map<String, String>> getGroupArticles(Jedis conn, String group, int page, String order) {
         String key = order + group;
+        // 先取缓存，不存在时，实时排序，排序结果缓存60s
         if (!conn.exists(key)) {
             ZParams params = new ZParams().aggregate(ZParams.Aggregate.MAX);
             conn.zinterstore(key, params, "group:" + group, order);
+            // 缓存60s
             conn.expire(key, 60);
         }
         return getArticles(conn, page, key);
@@ -157,7 +185,7 @@ public class Chapter01 {
         for (Map<String, String> article : articles) {
             System.out.println("  id: " + article.get("id"));
             for (Map.Entry<String, String> entry : article.entrySet()) {
-                if (entry.getKey().equals("id")) {
+                if ("id".equals(entry.getKey())) {
                     continue;
                 }
                 System.out.println("    " + entry.getKey() + ": " + entry.getValue());

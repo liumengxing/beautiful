@@ -9,13 +9,11 @@ import java.net.URL;
 import java.util.*;
 
 public class Chapter02 {
-    public static final void main(String[] args)
-            throws InterruptedException {
+    public static final void main(String[] args) throws InterruptedException {
         new Chapter02().run();
     }
 
-    public void run()
-            throws InterruptedException {
+    public void run() throws InterruptedException {
         Jedis conn = new Jedis("localhost");
         conn.select(15);
 
@@ -25,8 +23,7 @@ public class Chapter02 {
         testCacheRequest(conn);
     }
 
-    public void testLoginCookies(Jedis conn)
-            throws InterruptedException {
+    public void testLoginCookies(Jedis conn) throws InterruptedException {
         System.out.println("\n----- testLoginCookies -----");
         String token = UUID.randomUUID().toString();
 
@@ -58,8 +55,7 @@ public class Chapter02 {
         assert s == 0;
     }
 
-    public void testShopppingCartCookies(Jedis conn)
-            throws InterruptedException {
+    public void testShopppingCartCookies(Jedis conn) throws InterruptedException {
         System.out.println("\n----- testShopppingCartCookies -----");
         String token = UUID.randomUUID().toString();
 
@@ -94,8 +90,7 @@ public class Chapter02 {
         assert r.size() == 0;
     }
 
-    public void testCacheRows(Jedis conn)
-            throws InterruptedException {
+    public void testCacheRows(Jedis conn) throws InterruptedException {
         System.out.println("\n----- testCacheRows -----");
         System.out.println("First, let's schedule caching of itemX every 5 seconds");
         scheduleRowCache(conn, "itemX", 5);
@@ -145,11 +140,8 @@ public class Chapter02 {
         System.out.println("\n----- testCacheRequest -----");
         String token = UUID.randomUUID().toString();
 
-        Callback callback = new Callback() {
-            public String call(String request) {
-                return "content for " + request;
-            }
-        };
+        // 回调函数，定义request的请求结果
+        Callback callback = request -> "content for " + request;
 
         updateToken(conn, token, "username", "itemX");
         String url = "http://test.com/?item=itemX";
@@ -170,25 +162,61 @@ public class Chapter02 {
         assert !canCache(conn, "http://test.com/?item=itemX&_=1234536");
     }
 
+    /**
+     * 检查token对应的用户
+     * hash，令牌与用户的映射关系
+     * 给定token，直接hget即可
+     *
+     * @param conn
+     * @param token cookie的token令牌
+     * @return 用户id
+     */
     public String checkToken(Jedis conn, String token) {
         return conn.hget("login:", token);
     }
 
+    /**
+     * 操作后更新token
+     * hash，令牌与用户的映射关系
+     * zset，所有令牌，分值=最后一次使用时间
+     * zset，某个令牌访问的商品，分值=时间戳
+     *
+     * @param conn
+     * @param token 令牌
+     * @param user  用户
+     * @param item  被访问的商品
+     */
     public void updateToken(Jedis conn, String token, String user, String item) {
+        // 获取当前时间戳
         long timestamp = System.currentTimeMillis() / 1000;
+        // 维持token与当前用户的映射关系
         conn.hset("login:", token, user);
+        // 有序结合，记录token的最后一次使用时间
         conn.zadd("recent:", timestamp, token);
         if (item != null) {
+            // 记录令牌访问了一个商品
             conn.zadd("viewed:" + token, timestamp, item);
+            // 移除旧纪录，只保留最近的25个浏览记录
             conn.zremrangeByRank("viewed:" + token, 0, -26);
             conn.zincrby("viewed:", -1, item);
         }
     }
 
+    /**
+     * 购物车功能
+     * hash，每个session，及其购物车
+     *
+     * @param conn
+     * @param session
+     * @param item    商品
+     * @param count   购买数量
+     */
     public void addToCart(Jedis conn, String session, String item, int count) {
         if (count <= 0) {
+            // 购买数量不大于0，从购物车中清除数据
             conn.hdel("cart:" + session, item);
         } else {
+            // 将商品、购买数量添加到购物车
             conn.hset("cart:" + session, item, String.valueOf(count));
         }
     }
@@ -198,14 +226,24 @@ public class Chapter02 {
         conn.zadd("schedule:", System.currentTimeMillis() / 1000, rowId);
     }
 
+    /**
+     * 缓存常用的，不常变化的请求结果
+     * @param conn
+     * @param request 请求url
+     * @param callback 不能缓存时，通过回调函数返回请求结果
+     * @return
+     */
     public String cacheRequest(Jedis conn, String request, Callback callback) {
+        // 不能缓存请求结果时，使用回调函数的生成结果
         if (!canCache(conn, request)) {
             return callback != null ? callback.call(request) : null;
         }
 
+        // key=request的哈希码，value=请求结果
         String pageKey = "cache:" + hashRequest(request);
         String content = conn.get(pageKey);
 
+        // 没有缓存请求的返回结果时，返回回调函数的执行结果，并将结果缓存起来，设置过期时间300s
         if (content == null && callback != null) {
             content = callback.call(request);
             conn.setex(pageKey, 300, content);
@@ -236,35 +274,38 @@ public class Chapter02 {
         }
     }
 
-    public boolean isDynamic(Map<String, String> params) {
+    private boolean isDynamic(Map<String, String> params) {
         return params.containsKey("_");
     }
 
-    public String extractItemId(Map<String, String> params) {
+    private String extractItemId(Map<String, String> params) {
         return params.get("item");
     }
 
-    public String hashRequest(String request) {
+    private String hashRequest(String request) {
         return String.valueOf(request.hashCode());
     }
 
     public interface Callback {
-        public String call(String request);
+        String call(String request);
     }
 
-    public class CleanSessionsThread
-            extends Thread {
+    /**
+     * 清理session
+     * {@link CleanFullSessionsThread}
+     */
+    public class CleanSessionsThread extends Thread {
         private Jedis conn;
         private int limit;
         private boolean quit;
 
-        public CleanSessionsThread(int limit) {
+        CleanSessionsThread(int limit) {
             this.conn = new Jedis("localhost");
             this.conn.select(15);
             this.limit = limit;
         }
 
-        public void quit() {
+        void quit() {
             quit = true;
         }
 
@@ -283,40 +324,47 @@ public class Chapter02 {
 
                 long endIndex = Math.min(size - limit, 100);
                 Set<String> tokenSet = conn.zrange("recent:", 0, endIndex - 1);
-                String[] tokens = tokenSet.toArray(new String[tokenSet.size()]);
+                String[] tokens = tokenSet.toArray(new String[0]);
 
-                ArrayList<String> sessionKeys = new ArrayList<String>();
+                ArrayList<String> sessionKeys = new ArrayList<>();
                 for (String token : tokens) {
                     sessionKeys.add("viewed:" + token);
                 }
 
-                conn.del(sessionKeys.toArray(new String[sessionKeys.size()]));
+                conn.del(sessionKeys.toArray(new String[0]));
                 conn.hdel("login:", tokens);
                 conn.zrem("recent:", tokens);
             }
         }
     }
 
-    public class CleanFullSessionsThread
-            extends Thread {
+    /**
+     * 清理session
+     */
+    public class CleanFullSessionsThread extends Thread {
         private Jedis conn;
+        /**
+         * redis允许保存的session个数
+         */
         private int limit;
         private boolean quit;
 
-        public CleanFullSessionsThread(int limit) {
+        CleanFullSessionsThread(int limit) {
             this.conn = new Jedis("localhost");
             this.conn.select(15);
             this.limit = limit;
         }
 
-        public void quit() {
+        void quit() {
             quit = true;
         }
 
         @Override
         public void run() {
             while (!quit) {
+                // 当前已经存储的session个数
                 long size = conn.zcard("recent:");
+                // 当前不需要清理时，休眠1s
                 if (size <= limit) {
                     try {
                         sleep(1000);
@@ -326,34 +374,39 @@ public class Chapter02 {
                     continue;
                 }
 
+                // 需要清理的session个数，每次最多清理100个
                 long endIndex = Math.min(size - limit, 100);
+                // 最早的session集合
                 Set<String> sessionSet = conn.zrange("recent:", 0, endIndex - 1);
-                String[] sessions = sessionSet.toArray(new String[sessionSet.size()]);
+                String[] sessions = sessionSet.toArray(new String[0]);
 
-                ArrayList<String> sessionKeys = new ArrayList<String>();
+                ArrayList<String> sessionKeys = new ArrayList<>();
                 for (String sess : sessions) {
                     sessionKeys.add("viewed:" + sess);
                     sessionKeys.add("cart:" + sess);
                 }
 
-                conn.del(sessionKeys.toArray(new String[sessionKeys.size()]));
+                // 删除session相关的各种信息
+                // 购物车
+                conn.del(sessionKeys.toArray(new String[0]));
+                // 在令牌与用户的映射关系hash中，删除某个session
                 conn.hdel("login:", sessions);
+                // 删除令牌对应的浏览记录的zset
                 conn.zrem("recent:", sessions);
             }
         }
     }
 
-    public class CacheRowsThread
-            extends Thread {
+    public class CacheRowsThread extends Thread {
         private Jedis conn;
         private boolean quit;
 
-        public CacheRowsThread() {
+        CacheRowsThread() {
             this.conn = new Jedis("localhost");
             this.conn.select(15);
         }
 
-        public void quit() {
+        void quit() {
             quit = true;
         }
 
