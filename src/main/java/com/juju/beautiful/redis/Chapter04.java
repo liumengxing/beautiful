@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * redis实战第四章代码
  * 功能：
  * 1、将客户的商品放到市场销售
  * 2、购买商品
@@ -102,20 +101,31 @@ public class Chapter04 {
         benchmarkUpdateToken(conn, 5);
     }
 
-    public boolean listItem(
-            Jedis conn, String itemId, String sellerId, double price) {
-
+    /**
+     * 将用户的某个商品，添加到商品市场
+     *
+     * @param conn
+     * @param itemId   商品id
+     * @param sellerId 卖家用户id
+     * @param price    价格
+     * @return 是否添加成功
+     */
+    public boolean listItem(Jedis conn, String itemId, String sellerId, double price) {
         String inventory = "inventory:" + sellerId;
         String item = itemId + '.' + sellerId;
         long end = System.currentTimeMillis() + 5000;
 
+        // 5s内重试，直至成功or超时
         while (System.currentTimeMillis() < end) {
+            // 监视用户的包裹
             conn.watch(inventory);
+            // 不再持有要销售的商品，添加失败
             if (!conn.sismember(inventory, itemId)) {
                 conn.unwatch();
                 return false;
             }
 
+            // 将商品添加到商品市场，从用户的包裹中移除商品
             Transaction trans = conn.multi();
             trans.zadd("market:", price, item);
             trans.srem(inventory, itemId);
@@ -130,29 +140,45 @@ public class Chapter04 {
         return false;
     }
 
-    public boolean purchaseItem(
-            Jedis conn, String buyerId, String itemId, String sellerId, double lprice) {
-
+    /**
+     * 从商品市场购买商品
+     *
+     * @param conn
+     * @param buyerId  买家用户id
+     * @param itemId   商品id
+     * @param sellerId 卖家用户id
+     * @param lprice   售价
+     * @return 是否购买成功
+     */
+    public boolean purchaseItem(Jedis conn, String buyerId, String itemId, String sellerId, double lprice) {
         String buyer = "users:" + buyerId;
         String seller = "users:" + sellerId;
         String item = itemId + '.' + sellerId;
         String inventory = "inventory:" + buyerId;
         long end = System.currentTimeMillis() + 10000;
 
+        // 10s内重试，直至成功or超时
         while (System.currentTimeMillis() < end) {
+            // 监视商品市场、买家信息
             conn.watch("market:", buyer);
 
+            // 商品价格，买家余额
             double price = conn.zscore("market:", item);
             double funds = Double.parseDouble(conn.hget(buyer, "funds"));
+            // 商品价格变化，买家余额不足，购买失败
             if (price != lprice || price > funds) {
                 conn.unwatch();
                 return false;
             }
 
             Transaction trans = conn.multi();
+            // 卖家余额增加
             trans.hincrBy(seller, "funds", (int) price);
+            // 买家余额减少
             trans.hincrBy(buyer, "funds", (int) -price);
+            // 商品添加到买家包裹
             trans.sadd(inventory, itemId);
+            // 商品从市场移除
             trans.zrem("market:", item);
             List<Object> results = trans.exec();
             // null response indicates that the transaction was aborted due to
@@ -166,11 +192,16 @@ public class Chapter04 {
         return false;
     }
 
+    /**
+     * 测试两个更新token函数
+     *
+     * @param conn
+     * @param duration
+     */
     public void benchmarkUpdateToken(Jedis conn, int duration) {
         try {
             @SuppressWarnings("rawtypes")
-            Class[] args = new Class[]{
-                    Jedis.class, String.class, String.class, String.class};
+            Class[] args = new Class[]{Jedis.class, String.class, String.class, String.class};
             Method[] methods = new Method[]{
                     this.getClass().getDeclaredMethod("updateToken", args),
                     this.getClass().getDeclaredMethod("updateTokenPipeline", args),
@@ -195,6 +226,10 @@ public class Chapter04 {
         }
     }
 
+    /**
+     * 更新token函数
+     * 与redis交互5次
+     */
     public void updateToken(Jedis conn, String token, String user, String item) {
         long timestamp = System.currentTimeMillis() / 1000;
         conn.hset("login:", token, user);
@@ -206,6 +241,10 @@ public class Chapter04 {
         }
     }
 
+    /**
+     * 非事务型流水线
+     * 与redis交互1次
+     */
     public void updateTokenPipeline(Jedis conn, String token, String user, String item) {
         long timestamp = System.currentTimeMillis() / 1000;
         Pipeline pipe = conn.pipelined();

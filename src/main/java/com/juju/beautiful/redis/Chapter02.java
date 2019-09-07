@@ -221,15 +221,25 @@ public class Chapter02 {
         }
     }
 
+    /**
+     * 缓存数据行时，负责调度和终止缓存
+     *
+     * @param conn
+     * @param rowId 缓存数据行id
+     * @param delay 分数
+     */
     public void scheduleRowCache(Jedis conn, String rowId, int delay) {
+        // 调度开始后，delay时间后，停止调度
         conn.zadd("delay:", delay, rowId);
+        // 调度开始时间
         conn.zadd("schedule:", System.currentTimeMillis() / 1000, rowId);
     }
 
     /**
      * 缓存常用的，不常变化的请求结果
+     *
      * @param conn
-     * @param request 请求url
+     * @param request  请求url
      * @param callback 不能缓存时，通过回调函数返回请求结果
      * @return
      */
@@ -263,10 +273,13 @@ public class Chapter02 {
                 }
             }
 
+            // 页面读取itemid
             String itemId = extractItemId(params);
             if (itemId == null || isDynamic(params)) {
                 return false;
             }
+
+            // 被浏览次数，确定是否要缓存
             Long rank = conn.zrank("viewed:", itemId);
             return rank != null && rank < 10000;
         } catch (MalformedURLException mue) {
@@ -397,6 +410,10 @@ public class Chapter02 {
         }
     }
 
+    /**
+     * 缓存数据行
+     * 调度函数：{@link #scheduleRowCache}
+     */
     public class CacheRowsThread extends Thread {
         private Jedis conn;
         private boolean quit;
@@ -414,9 +431,11 @@ public class Chapter02 {
         public void run() {
             Gson gson = new Gson();
             while (!quit) {
+                // 获取下一个需要被缓存的数据行的调度时间
                 Set<Tuple> range = conn.zrangeWithScores("schedule:", 0, 0);
                 Tuple next = range.size() > 0 ? range.iterator().next() : null;
                 long now = System.currentTimeMillis() / 1000;
+                // 没有读取到，休眠50ms继续
                 if (next == null || next.getScore() > now) {
                     try {
                         sleep(50);
@@ -426,8 +445,10 @@ public class Chapter02 {
                     continue;
                 }
 
+                // 停止调度判断
                 String rowId = next.getElement();
                 double delay = conn.zscore("delay:", rowId);
+                // 停止调度的时候，移除两个zset，移除数据行信息
                 if (delay <= 0) {
                     conn.zrem("delay:", rowId);
                     conn.zrem("schedule:", rowId);
@@ -435,8 +456,11 @@ public class Chapter02 {
                     continue;
                 }
 
+                // 从数据库读取inventory的最新信息
                 Inventory row = Inventory.get(rowId);
+                // 下一次缓存inventory的时间
                 conn.zadd("schedule:", now + delay, rowId);
+                // 将inventory信息写入缓存
                 conn.set("inv:" + rowId, gson.toJson(row));
             }
         }

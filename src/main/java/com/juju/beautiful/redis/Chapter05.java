@@ -21,22 +21,18 @@ public class Chapter05 {
 
     public static final Collator COLLATOR = Collator.getInstance();
 
-    public static final SimpleDateFormat TIMESTAMP =
-            new SimpleDateFormat("EEE MMM dd HH:00:00 yyyy");
-    private static final SimpleDateFormat ISO_FORMAT =
-            new SimpleDateFormat("yyyy-MM-dd'T'HH:00:00");
+    public static final SimpleDateFormat TIMESTAMP = new SimpleDateFormat("EEE MMM dd HH:00:00 yyyy");
+    private static final SimpleDateFormat ISO_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:00:00");
 
     static {
         ISO_FORMAT.setTimeZone(TimeZone.getTimeZone("UTC"));
     }
 
-    public static final void main(String[] args)
-            throws InterruptedException {
+    public static final void main(String[] args) throws InterruptedException {
         new Chapter05().run();
     }
 
-    public void run()
-            throws InterruptedException {
+    public void run() throws InterruptedException {
         Jedis conn = new Jedis("localhost");
         conn.select(15);
 
@@ -57,9 +53,7 @@ public class Chapter05 {
             logRecent(conn, "test", "this is message " + i);
         }
         List<String> recent = conn.lrange("recent:test:info", 0, -1);
-        System.out.println(
-                "The current recent message log has this many messages: " +
-                        recent.size());
+        System.out.println("The current recent message log has this many messages: " + recent.size());
         System.out.println("Those messages include:");
         for (String message : recent) {
             System.out.println(message);
@@ -84,8 +78,7 @@ public class Chapter05 {
         assert common.size() >= 5;
     }
 
-    public void testCounters(Jedis conn)
-            throws InterruptedException {
+    public void testCounters(Jedis conn) throws InterruptedException {
         System.out.println("\n----- testCounters -----");
         System.out.println("Let's update some counters for now and a little in the future");
         long now = System.currentTimeMillis() / 1000;
@@ -137,8 +130,7 @@ public class Chapter05 {
         assert stats.get("count") >= 5;
     }
 
-    public void testAccessTime(Jedis conn)
-            throws InterruptedException {
+    public void testAccessTime(Jedis conn) throws InterruptedException {
         System.out.println("\n----- testAccessTime -----");
         System.out.println("Let's calculate some access times...");
         AccessTimer timer = new AccessTimer(conn);
@@ -190,11 +182,7 @@ public class Chapter05 {
 
         System.out.println("Let's lookup some locations!");
         for (int i = 0; i < 5; i++) {
-            String ip =
-                    randomOctet(255) + '.' +
-                            randomOctet(256) + '.' +
-                            randomOctet(256) + '.' +
-                            randomOctet(256);
+            String ip = randomOctet(255) + '.' + randomOctet(256) + '.' + randomOctet(256) + '.' + randomOctet(256);
             System.out.println(Arrays.toString(findCityByIp(conn, ip)));
         }
     }
@@ -221,8 +209,7 @@ public class Chapter05 {
         setConfig(conn, "redis", "test", config);
 
         Jedis conn2 = redisConnection("test");
-        System.out.println(
-                "We can run commands from the configured connection: " + (conn2.info() != null));
+        System.out.println("We can run commands from the configured connection: " + (conn2.info() != null));
     }
 
     public void logRecent(Jedis conn, String name, String message) {
@@ -241,8 +228,7 @@ public class Chapter05 {
         logCommon(conn, name, message, INFO, 5000);
     }
 
-    public void logCommon(
-            Jedis conn, String name, String message, String severity, int timeout) {
+    public void logCommon(Jedis conn, String name, String message, String severity, int timeout) {
         String commonDest = "common:" + name + ':' + severity;
         String startKey = commonDest + ":start";
         long end = System.currentTimeMillis() + timeout;
@@ -290,16 +276,12 @@ public class Chapter05 {
         trans.exec();
     }
 
-    public List<Pair<Integer, Integer>> getCounter(
-            Jedis conn, String name, int precision) {
+    public List<Pair<Integer, Integer>> getCounter(Jedis conn, String name, int precision) {
         String hash = String.valueOf(precision) + ':' + name;
         Map<String, String> data = conn.hgetAll("count:" + hash);
-        ArrayList<Pair<Integer, Integer>> results =
-                new ArrayList<Pair<Integer, Integer>>();
+        ArrayList<Pair<Integer, Integer>> results = new ArrayList<Pair<Integer, Integer>>();
         for (Map.Entry<String, String> entry : data.entrySet()) {
-            results.add(new Pair<Integer, Integer>(
-                    Integer.parseInt(entry.getKey()),
-                    Integer.parseInt(entry.getValue())));
+            results.add(new Pair<>(Integer.parseInt(entry.getKey()), Integer.parseInt(entry.getValue())));
         }
 
         // TODO: 2019/8/30
@@ -329,14 +311,8 @@ public class Chapter05 {
             trans.zadd(tkey1, value, "min");
             trans.zadd(tkey2, value, "max");
 
-            trans.zunionstore(
-                    destination,
-                    new ZParams().aggregate(ZParams.Aggregate.MIN),
-                    destination, tkey1);
-            trans.zunionstore(
-                    destination,
-                    new ZParams().aggregate(ZParams.Aggregate.MAX),
-                    destination, tkey2);
+            trans.zunionstore(destination, new ZParams().aggregate(ZParams.Aggregate.MIN), destination, tkey1);
+            trans.zunionstore(destination, new ZParams().aggregate(ZParams.Aggregate.MAX), destination, tkey2);
 
             trans.del(tkey1, tkey2);
             trans.zincrby(destination, 1, "count");
@@ -379,14 +355,12 @@ public class Chapter05 {
         return underMaintenance;
     }
 
-    public void setConfig(
-            Jedis conn, String type, String component, Map<String, Object> config) {
+    public void setConfig(Jedis conn, String type, String component, Map<String, Object> config) {
         Gson gson = new Gson();
         conn.set("config:" + type + ':' + component, gson.toJson(config));
     }
 
-    private static final Map<String, Map<String, Object>> CONFIGS =
-            new HashMap<String, Map<String, Object>>();
+    private static final Map<String, Map<String, Object>> CONFIGS = new HashMap<String, Map<String, Object>>();
     private static final Map<String, Long> CHECKED = new HashMap<String, Long>();
 
     @SuppressWarnings("unchecked")
@@ -402,11 +376,10 @@ public class Chapter05 {
             Map<String, Object> config = null;
             if (value != null) {
                 Gson gson = new Gson();
-                config = (Map<String, Object>) gson.fromJson(
-                        value, new TypeToken<Map<String, Object>>() {
-                        }.getType());
+                config = gson.fromJson(value, new TypeToken<Map<String, Object>>() {
+                }.getType());
             } else {
-                config = new HashMap<String, Object>();
+                config = new HashMap<>();
             }
 
             CONFIGS.put(key, config);
@@ -415,8 +388,7 @@ public class Chapter05 {
         return CONFIGS.get(key);
     }
 
-    public static final Map<String, Jedis> REDIS_CONNECTIONS =
-            new HashMap<String, Jedis>();
+    public static final Map<String, Jedis> REDIS_CONNECTIONS = new HashMap<String, Jedis>();
 
     public Jedis redisConnection(String component) {
         Jedis configConn = REDIS_CONNECTIONS.get("config");
@@ -532,12 +504,11 @@ public class Chapter05 {
         return new Gson().fromJson(conn.hget("cityid2city:", cityId), String[].class);
     }
 
-    public class CleanCountersThread
-            extends Thread {
+    public class CleanCountersThread extends Thread {
         private Jedis conn;
         private int sampleCount = 100;
         private boolean quit;
-        private long timeOffset; // used to mimic a time in the future.
+        private long timeOffset;
 
         public CleanCountersThread(int sampleCount, long timeOffset) {
             this.conn = new Jedis("localhost");
@@ -573,8 +544,7 @@ public class Chapter05 {
                     }
 
                     String hkey = "count:" + hash;
-                    String cutoff = String.valueOf(
-                            ((System.currentTimeMillis() + timeOffset) / 1000) - sampleCount * prec);
+                    String cutoff = String.valueOf(((System.currentTimeMillis() + timeOffset) / 1000) - sampleCount * prec);
                     ArrayList<String> samples = new ArrayList<String>(conn.hkeys(hkey));
                     Collections.sort(samples);
                     int remove = bisectRight(samples, cutoff);
@@ -606,7 +576,6 @@ public class Chapter05 {
             }
         }
 
-        // mimic python's bisect.bisect_right
         public int bisectRight(List<String> values, String key) {
             int index = Collections.binarySearch(values, key);
             return index < 0 ? Math.abs(index) - 1 : index + 1;
