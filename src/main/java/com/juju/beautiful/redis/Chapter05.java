@@ -28,7 +28,7 @@ public class Chapter05 {
         ISO_FORMAT.setTimeZone(TimeZone.getTimeZone("UTC"));
     }
 
-    public static final void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException {
         new Chapter05().run();
     }
 
@@ -55,7 +55,7 @@ public class Chapter05 {
         List<String> recent = conn.lrange("recent:test:info", 0, -1);
         System.out.println("The current recent message log has this many messages: " + recent.size());
         System.out.println("Those messages include:");
-        recent.stream().forEach(System.out::println);
+        recent.forEach(System.out::println);
 
         assert recent.size() >= 5;
     }
@@ -294,7 +294,7 @@ public class Chapter05 {
     public List<Pair<Integer, Integer>> getCounter(Jedis conn, String name, int precision) {
         String hash = String.valueOf(precision) + ':' + name;
         Map<String, String> data = conn.hgetAll("count:" + hash);
-        ArrayList<Pair<Integer, Integer>> results = new ArrayList<Pair<Integer, Integer>>();
+        ArrayList<Pair<Integer, Integer>> results = new ArrayList<>();
         for (Map.Entry<String, String> entry : data.entrySet()) {
             results.add(new Pair<>(Integer.parseInt(entry.getKey()), Integer.parseInt(entry.getValue())));
         }
@@ -345,7 +345,7 @@ public class Chapter05 {
 
     public Map<String, Double> getStats(Jedis conn, String context, String type) {
         String key = "stats:" + context + ':' + type;
-        Map<String, Double> stats = new HashMap<String, Double>();
+        Map<String, Double> stats = new HashMap<>();
         Set<Tuple> data = conn.zrangeWithScores(key, 0, -1);
         for (Tuple tuple : data) {
             stats.put(tuple.getElement(), tuple.getScore());
@@ -375,8 +375,8 @@ public class Chapter05 {
         conn.set("config:" + type + ':' + component, gson.toJson(config));
     }
 
-    private static final Map<String, Map<String, Object>> CONFIGS = new HashMap<String, Map<String, Object>>();
-    private static final Map<String, Long> CHECKED = new HashMap<String, Long>();
+    private static final Map<String, Map<String, Object>> CONFIGS = new HashMap<>();
+    private static final Map<String, Long> CHECKED = new HashMap<>();
 
     @SuppressWarnings("unchecked")
     public Map<String, Object> getConfig(Jedis conn, String type, String component) {
@@ -388,7 +388,7 @@ public class Chapter05 {
             CHECKED.put(key, System.currentTimeMillis());
 
             String value = conn.get(key);
-            Map<String, Object> config = null;
+            Map<String, Object> config;
             if (value != null) {
                 Gson gson = new Gson();
                 config = gson.fromJson(value, new TypeToken<Map<String, Object>>() {
@@ -429,18 +429,16 @@ public class Chapter05 {
     }
 
     public void importIpsToRedis(Jedis conn, File file) {
-        FileReader reader = null;
-        try {
-            reader = new FileReader(file);
+        try (FileReader reader = new FileReader(file)) {
             CSVParser parser = new CSVParser(reader);
             int count = 0;
-            String[] line = null;
+            String[] line;
             while ((line = parser.getLine()) != null) {
                 String startIp = line.length > 1 ? line[0] : "";
                 if (startIp.toLowerCase().indexOf('i') != -1) {
                     continue;
                 }
-                int score = 0;
+                int score;
                 if (startIp.indexOf('.') != -1) {
                     score = ipToScore(startIp);
                 } else {
@@ -457,22 +455,15 @@ public class Chapter05 {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
-        } finally {
-            try {
-                reader.close();
-            } catch (Exception e) {
-                // ignore
-            }
         }
+        // ignore
     }
 
     public void importCitiesToRedis(Jedis conn, File file) {
         Gson gson = new Gson();
-        FileReader reader = null;
-        try {
-            reader = new FileReader(file);
+        try (FileReader reader = new FileReader(file)) {
             CSVParser parser = new CSVParser(reader);
-            String[] line = null;
+            String[] line;
             while ((line = parser.getLine()) != null) {
                 if (line.length < 4 || !Character.isDigit(line[0].charAt(0))) {
                     continue;
@@ -486,13 +477,8 @@ public class Chapter05 {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
-        } finally {
-            try {
-                reader.close();
-            } catch (Exception e) {
-                // ignore
-            }
         }
+        // ignore
     }
 
     public int ipToScore(String ipAddress) {
@@ -525,14 +511,14 @@ public class Chapter05 {
         private boolean quit;
         private long timeOffset;
 
-        public CleanCountersThread(int sampleCount, long timeOffset) {
+        CleanCountersThread(int sampleCount, long timeOffset) {
             this.conn = new Jedis("localhost");
             this.conn.select(15);
             this.sampleCount = sampleCount;
             this.timeOffset = timeOffset;
         }
 
-        public void quit() {
+        void quit() {
             quit = true;
         }
 
@@ -560,7 +546,7 @@ public class Chapter05 {
 
                     String hkey = "count:" + hash;
                     String cutoff = String.valueOf(((System.currentTimeMillis() + timeOffset) / 1000) - sampleCount * prec);
-                    ArrayList<String> samples = new ArrayList<String>(conn.hkeys(hkey));
+                    ArrayList<String> samples = new ArrayList<>(conn.hkeys(hkey));
                     Collections.sort(samples);
                     int remove = bisectRight(samples, cutoff);
 
@@ -590,7 +576,7 @@ public class Chapter05 {
             }
         }
 
-        public int bisectRight(List<String> values, String key) {
+        int bisectRight(List<String> values, String key) {
             int index = Collections.binarySearch(values, key);
             return index < 0 ? Math.abs(index) - 1 : index + 1;
         }
@@ -600,15 +586,15 @@ public class Chapter05 {
         private Jedis conn;
         private long start;
 
-        public AccessTimer(Jedis conn) {
+        AccessTimer(Jedis conn) {
             this.conn = conn;
         }
 
-        public void start() {
+        void start() {
             start = System.currentTimeMillis();
         }
 
-        public void stop(String context) {
+        void stop(String context) {
             long delta = System.currentTimeMillis() - start;
             List<Object> stats = updateStats(conn, context, "AccessTime", delta / 1000.0);
             double average = (Double) stats.get(1) / (Double) stats.get(0);
