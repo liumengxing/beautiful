@@ -9,11 +9,12 @@ import redis.clients.jedis.ZParams;
 
 import java.io.*;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 public class Chapter06 {
-    public static final void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
         new Chapter06().run();
     }
 
@@ -39,6 +40,7 @@ public class Chapter06 {
             addUpdateContact(conn, "user", "contact-" + ((int) Math.floor(i / 3)) + '-' + i);
         }
         System.out.println("Current recently contacted contacts");
+        // redis读取用户的所有最近联系人
         List<String> contacts = conn.lrange("recent:user", 0, -1);
         for (String contact : contacts) {
             System.out.println("  " + contact);
@@ -70,7 +72,7 @@ public class Chapter06 {
         List<String> all = conn.lrange("recent:user", 0, -1);
         contacts = fetchAutocompleteList(conn, "user", "c");
         assert all.equals(contacts);
-        List<String> equiv = new ArrayList<String>();
+        List<String> equiv = new ArrayList<>();
         for (String contact : all) {
             if (contact.startsWith("contact-2-")) {
                 equiv.add(contact);
@@ -172,7 +174,7 @@ public class Chapter06 {
         conn.del("queue:tqueue", "delayed:");
         System.out.println("Let's start some regular and delayed tasks...");
         for (long delay : new long[]{0, 500, 0, 1500}) {
-            assert executeLater(conn, "tqueue", "testfn", new ArrayList<String>(), delay) != null;
+            assert executeLater(conn, "tqueue", "testfn", new ArrayList<>(), delay) != null;
         }
         long r = conn.llen("queue:tqueue");
         System.out.println("How many non-delayed tasks are there (should be 2)? " + r);
@@ -198,7 +200,7 @@ public class Chapter06 {
         conn.del("ids:chat:", "msgs:1", "ids:1", "seen:joe", "seen:jeff", "seen:jenny");
 
         System.out.println("Let's create a new chat session with some recipients...");
-        Set<String> recipients = new HashSet<String>();
+        Set<String> recipients = new HashSet<>();
         recipients.add("jeff");
         recipients.add("jenny");
         String chatId = createChat(conn, "joe", recipients, "message 1");
@@ -225,8 +227,7 @@ public class Chapter06 {
         conn.del("ids:chat:", "msgs:1", "ids:1", "seen:joe", "seen:jeff", "seen:jenny");
     }
 
-    public void testFileDistribution(Jedis conn)
-            throws InterruptedException, IOException {
+    public void testFileDistribution(Jedis conn) throws InterruptedException, IOException {
         System.out.println("\n----- testFileDistribution -----");
         String[] keys = conn.keys("test:*").toArray(new String[0]);
         if (keys.length > 0) {
@@ -295,7 +296,7 @@ public class Chapter06 {
 
     public class TestCallback implements Callback {
         private int index;
-        public List<Integer> counts = new ArrayList<Integer>();
+        private List<Integer> counts = new ArrayList<>();
 
         @Override
         public void callback(String line) {
@@ -310,11 +311,21 @@ public class Chapter06 {
         }
     }
 
+    /**
+     * 将100个contact保存在列表中
+     *
+     * @param conn
+     * @param user    某个用户
+     * @param contact 联系人
+     */
     public void addUpdateContact(Jedis conn, String user, String contact) {
         String acList = "recent:" + user;
         Transaction trans = conn.multi();
+        // 移除
         trans.lrem(acList, 0, contact);
+        // 插入列表最左端
         trans.lpush(acList, contact);
+        // 只保留最近的100个
         trans.ltrim(acList, 0, 99);
         trans.exec();
     }
@@ -323,15 +334,22 @@ public class Chapter06 {
         conn.lrem("recent:" + user, 0, contact);
     }
 
+    /**
+     * 自动补全联系人
+     * 仅保存最近的100个，长度适中，可以将整个列表读取到内存中操作
+     * 列表很长时不适用
+     *
+     * @param conn
+     * @param user   用户
+     * @param prefix 已输入的联系人前缀
+     * @return 匹配前缀的联系人列表
+     */
     public List<String> fetchAutocompleteList(Jedis conn, String user, String prefix) {
+        // redis中读取最近联系人
         List<String> candidates = conn.lrange("recent:" + user, 0, -1);
-        List<String> matches = new ArrayList<String>();
-        for (String candidate : candidates) {
-            if (candidate.toLowerCase().startsWith(prefix)) {
-                matches.add(candidate);
-            }
-        }
-        return matches;
+        return candidates.stream()
+                .filter(candidate -> candidate.toLowerCase().startsWith(prefix))
+                .collect(Collectors.toList());
     }
 
     private static final String VALID_CHARACTERS = "`abcdefghijklmnopqrstuvwxyz{";
@@ -365,7 +383,7 @@ public class Chapter06 {
         conn.zadd(zsetName, 0, start);
         conn.zadd(zsetName, 0, end);
 
-        Set<String> items = null;
+        Set<String> items;
         while (true) {
             conn.watch(zsetName);
             int sindex = conn.zrank(zsetName, start).intValue();
@@ -383,11 +401,7 @@ public class Chapter06 {
             }
         }
 
-        for (Iterator<String> iterator = items.iterator(); iterator.hasNext(); ) {
-            if (iterator.next().indexOf('{') != -1) {
-                iterator.remove();
-            }
-        }
+        items.removeIf(s -> s.indexOf('{') != -1);
         return items;
     }
 
@@ -543,7 +557,7 @@ public class Chapter06 {
         }
         try {
             long messageId = conn.incr("ids:" + chatId);
-            HashMap<String, Object> values = new HashMap<String, Object>();
+            HashMap<String, Object> values = new HashMap<>();
             values.put("id", messageId);
             values.put("ts", System.currentTimeMillis());
             values.put("sender", sender);
@@ -559,7 +573,7 @@ public class Chapter06 {
     @SuppressWarnings("unchecked")
     public List<ChatMessages> fetchPendingMessages(Jedis conn, String recipient) {
         Set<Tuple> seenSet = conn.zrangeWithScores("seen:" + recipient, 0, -1);
-        List<Tuple> seenList = new ArrayList<Tuple>(seenSet);
+        List<Tuple> seenList = new ArrayList<>(seenSet);
 
         Transaction trans = conn.multi();
         for (Tuple tuple : seenList) {
@@ -573,9 +587,9 @@ public class Chapter06 {
         Iterator<Tuple> seenIterator = seenList.iterator();
         Iterator<Object> resultsIterator = results.iterator();
 
-        List<ChatMessages> chatMessages = new ArrayList<ChatMessages>();
-        List<Object[]> seenUpdates = new ArrayList<Object[]>();
-        List<Object[]> msgRemoves = new ArrayList<Object[]>();
+        List<ChatMessages> chatMessages = new ArrayList<>();
+        List<Object[]> seenUpdates = new ArrayList<>();
+        List<Object[]> msgRemoves = new ArrayList<>();
         while (seenIterator.hasNext()) {
             Tuple seen = seenIterator.next();
             Set<String> messageStrings = (Set<String>) resultsIterator.next();
@@ -585,11 +599,10 @@ public class Chapter06 {
 
             int seenId = 0;
             String chatId = seen.getElement();
-            List<Map<String, Object>> messages = new ArrayList<Map<String, Object>>();
+            List<Map<String, Object>> messages = new ArrayList<>();
             for (String messageJson : messageStrings) {
-                Map<String, Object> message = (Map<String, Object>) gson.fromJson(
-                        messageJson, new TypeToken<Map<String, Object>>() {
-                        }.getType());
+                Map<String, Object> message = gson.fromJson(messageJson, new TypeToken<Map<String, Object>>() {
+                }.getType());
                 int messageId = ((Double) message.get("id")).intValue();
                 if (messageId > seenId) {
                     seenId = messageId;
@@ -603,22 +616,17 @@ public class Chapter06 {
 
             Set<Tuple> minIdSet = conn.zrangeWithScores("chat:" + chatId, 0, 0);
             if (minIdSet.size() > 0) {
-                msgRemoves.add(new Object[]{
-                        "msgs:" + chatId, minIdSet.iterator().next().getScore()});
+                msgRemoves.add(new Object[]{"msgs:" + chatId, minIdSet.iterator().next().getScore()});
             }
             chatMessages.add(new ChatMessages(chatId, messages));
         }
 
         trans = conn.multi();
         for (Object[] seenUpdate : seenUpdates) {
-            trans.zadd(
-                    (String) seenUpdate[0],
-                    (Integer) seenUpdate[1],
-                    (String) seenUpdate[2]);
+            trans.zadd((String) seenUpdate[0], (Integer) seenUpdate[1], (String) seenUpdate[2]);
         }
         for (Object[] msgRemove : msgRemoves) {
-            trans.zremrangeByScore(
-                    (String) msgRemove[0], 0, ((Double) msgRemove[1]).intValue());
+            trans.zremrangeByScore((String) msgRemove[0], 0, ((Double) msgRemove[1]).intValue());
         }
         trans.exec();
 
@@ -640,21 +648,17 @@ public class Chapter06 {
                         continue;
                     }
 
-                    InputStream in = new RedisInputStream(
-                            conn, messages.chatId + logFile);
+                    InputStream in = new RedisInputStream(conn, messages.chatId + logFile);
                     if (logFile.endsWith(".gz")) {
                         in = new GZIPInputStream(in);
                     }
 
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-                    try {
-                        String line = null;
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
+                        String line;
                         while ((line = reader.readLine()) != null) {
                             callback.callback(line);
                         }
                         callback.callback(null);
-                    } finally {
-                        reader.close();
                     }
 
                     conn.incr(messages.chatId + logFile + ":done");
@@ -672,32 +676,29 @@ public class Chapter06 {
         private String key;
         private int pos;
 
-        public RedisInputStream(Jedis conn, String key) {
+        RedisInputStream(Jedis conn, String key) {
             this.conn = conn;
             this.key = key;
         }
 
         @Override
-        public int available()
-                throws IOException {
+        public int available() {
             long len = conn.strlen(key);
             return (int) (len - pos);
         }
 
         @Override
-        public int read()
-                throws IOException {
+        public int read() {
             byte[] block = conn.substr(key.getBytes(), pos, pos);
             if (block == null || block.length == 0) {
                 return -1;
             }
             pos++;
-            return (int) (block[0] & 0xff);
+            return (block[0] & 0xff);
         }
 
         @Override
-        public int read(byte[] buf, int off, int len)
-                throws IOException {
+        public int read(byte[] buf, int off, int len) {
             byte[] block = conn.substr(key.getBytes(), pos, pos + (len - off - 1));
             if (block == null || block.length == 0) {
                 return -1;
@@ -709,7 +710,6 @@ public class Chapter06 {
 
         @Override
         public void close() {
-            // no-op
         }
     }
 
@@ -718,10 +718,10 @@ public class Chapter06 {
     }
 
     public class ChatMessages {
-        public String chatId;
-        public List<Map<String, Object>> messages;
+        String chatId;
+        List<Map<String, Object>> messages;
 
-        public ChatMessages(String chatId, List<Map<String, Object>> messages) {
+        ChatMessages(String chatId, List<Map<String, Object>> messages) {
             this.chatId = chatId;
             this.messages = messages;
         }
@@ -732,8 +732,7 @@ public class Chapter06 {
                 return false;
             }
             ChatMessages otherCm = (ChatMessages) other;
-            return chatId.equals(otherCm.chatId) &&
-                    messages.equals(otherCm.messages);
+            return chatId.equals(otherCm.chatId) && messages.equals(otherCm.messages);
         }
     }
 
@@ -742,12 +741,12 @@ public class Chapter06 {
         private boolean quit;
         private Gson gson = new Gson();
 
-        public PollQueueThread() {
+        PollQueueThread() {
             this.conn = new Jedis("localhost");
             this.conn.select(15);
         }
 
-        public void quit() {
+        void quit() {
             quit = true;
         }
 
@@ -791,7 +790,7 @@ public class Chapter06 {
         private int count;
         private long limit;
 
-        public CopyLogsThread(File path, String channel, int count, long limit) {
+        CopyLogsThread(File path, String channel, int count, long limit) {
             this.conn = new Jedis("localhost");
             this.conn.select(15);
             this.path = path;
@@ -802,20 +801,15 @@ public class Chapter06 {
 
         @Override
         public void run() {
-            Deque<File> waiting = new ArrayDeque<File>();
+            Deque<File> waiting = new ArrayDeque<>();
             long bytesInRedis = 0;
 
-            Set<String> recipients = new HashSet<String>();
+            Set<String> recipients = new HashSet<>();
             for (int i = 0; i < count; i++) {
                 recipients.add(String.valueOf(i));
             }
             createChat(conn, "source", recipients, "", channel);
-            File[] logFiles = path.listFiles(new FilenameFilter() {
-                @Override
-                public boolean accept(File dir, String name) {
-                    return name.startsWith("temp_redis");
-                }
-            });
+            File[] logFiles = path.listFiles((dir, name) -> name.startsWith("temp_redis"));
             Arrays.sort(logFiles);
             for (File logFile : logFiles) {
                 long fsize = logFile.length();
@@ -832,10 +826,8 @@ public class Chapter06 {
                     }
                 }
 
-                BufferedInputStream in = null;
-                try {
-                    in = new BufferedInputStream(new FileInputStream(logFile));
-                    int read = 0;
+                try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(logFile))) {
+                    int read;
                     byte[] buffer = new byte[8192];
                     while ((read = in.read(buffer, 0, buffer.length)) != -1) {
                         if (buffer.length != read) {
@@ -849,11 +841,6 @@ public class Chapter06 {
                 } catch (IOException ioe) {
                     ioe.printStackTrace();
                     throw new RuntimeException(ioe);
-                } finally {
-                    try {
-                        in.close();
-                    } catch (Exception ignore) {
-                    }
                 }
 
                 sendMessage(conn, channel, "source", logFile.toString());

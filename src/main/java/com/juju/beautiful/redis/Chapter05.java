@@ -55,9 +55,8 @@ public class Chapter05 {
         List<String> recent = conn.lrange("recent:test:info", 0, -1);
         System.out.println("The current recent message log has this many messages: " + recent.size());
         System.out.println("Those messages include:");
-        for (String message : recent) {
-            System.out.println(message);
-        }
+        recent.stream().forEach(System.out::println);
+
         assert recent.size() >= 5;
     }
 
@@ -219,7 +218,10 @@ public class Chapter05 {
     public void logRecent(Jedis conn, String name, String message, String severity) {
         String destination = "recent:" + name + ':' + severity;
         Pipeline pipe = conn.pipelined();
+        // recent:test:info
+        // timestamp + message
         pipe.lpush(destination, TIMESTAMP.format(new Date()) + ' ' + message);
+        // 只保留0~99的列表
         pipe.ltrim(destination, 0, 99);
         pipe.sync();
     }
@@ -229,23 +231,36 @@ public class Chapter05 {
     }
 
     public void logCommon(Jedis conn, String name, String message, String severity, int timeout) {
+        // 日志有序集合的key
         String commonDest = "common:" + name + ':' + severity;
+        // 用string记录当前日志有序集合记录的开始时间
         String startKey = commonDest + ":start";
         long end = System.currentTimeMillis() + timeout;
         while (System.currentTimeMillis() < end) {
+            // common:test:info:start
             conn.watch(startKey);
             String hourStart = ISO_FORMAT.format(new Date());
             String existing = conn.get(startKey);
 
             Transaction trans = conn.multi();
+            // 归档旧日志，即重命名当前的队列
+            // 更新日志队列，记录开始的时间 = 当前时间所处的
             if (existing != null && COLLATOR.compare(existing, hourStart) < 0) {
+                // 重命名，common:test:info -> common:test:info:last
                 trans.rename(commonDest, commonDest + ":last");
+                // 重命名，common:test:info:start -> common:test:info:pstart
                 trans.rename(startKey, commonDest + ":pstart");
+                // common:test:info:start
+                // 当前时间
                 trans.set(startKey, hourStart);
             }
 
+            // common:test:info
+            // message分数，+1
             trans.zincrby(commonDest, 1, message);
 
+            // 日志写入列表，recent:test:info
+            // 只保留100个
             String recentDest = "recent:" + name + ':' + severity;
             trans.lpush(recentDest, TIMESTAMP.format(new Date()) + ' ' + message);
             trans.ltrim(recentDest, 0, 99);
@@ -566,8 +581,7 @@ public class Chapter05 {
                 }
 
                 passes++;
-                long duration = Math.min(
-                        (System.currentTimeMillis() + timeOffset) - start + 1000, 60000);
+                long duration = Math.min((System.currentTimeMillis() + timeOffset) - start + 1000, 60000);
                 try {
                     sleep(Math.max(60000 - duration, 1000));
                 } catch (InterruptedException ie) {
