@@ -11,6 +11,7 @@ import java.io.FileReader;
 import java.text.Collator;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.IntStream;
 
 public class Chapter05 {
     public static final String DEBUG = "debug";
@@ -49,9 +50,8 @@ public class Chapter05 {
     public void testLogRecent(Jedis conn) {
         System.out.println("\n----- testLogRecent -----");
         System.out.println("Let's write a few logs to the recent log");
-        for (int i = 0; i < 5; i++) {
-            logRecent(conn, "test", "this is message " + i);
-        }
+        IntStream.range(0, 5)
+                .forEach(i -> logRecent(conn, "test", "this is message " + i));
         List<String> recent = conn.lrange("recent:test:info", 0, -1);
         System.out.println("The current recent message log has this many messages: " + recent.size());
         System.out.println("Those messages include:");
@@ -71,9 +71,8 @@ public class Chapter05 {
         Set<Tuple> common = conn.zrevrangeWithScores("common:test:info", 0, -1);
         System.out.println("The current number of common messages is: " + common.size());
         System.out.println("Those common messages are:");
-        for (Tuple tuple : common) {
-            System.out.println("  " + tuple.getElement() + ", " + tuple.getScore());
-        }
+        common.stream().map(tuple -> "  " + tuple.getElement() + ", " + tuple.getScore())
+                .forEach(System.out::println);
         assert common.size() >= 5;
     }
 
@@ -81,25 +80,23 @@ public class Chapter05 {
         System.out.println("\n----- testCounters -----");
         System.out.println("Let's update some counters for now and a little in the future");
         long now = System.currentTimeMillis() / 1000;
-        for (int i = 0; i < 10; i++) {
+        IntStream.range(0, 10).forEach(i -> {
             int count = (int) (Math.random() * 5) + 1;
             updateCounter(conn, "test", count, now + i);
-        }
+        });
 
         List<Pair<Integer, Integer>> counter = getCounter(conn, "test", 1);
         System.out.println("We have some per-second counters: " + counter.size());
         System.out.println("These counters include:");
-        for (Pair<Integer, Integer> count : counter) {
-            System.out.println("  " + count);
-        }
+        counter.stream().map(count -> "  " + count)
+                .forEach(System.out::println);
         assert counter.size() >= 10;
 
         counter = getCounter(conn, "test", 5);
         System.out.println("We have some per-5-second counters: " + counter.size());
         System.out.println("These counters include:");
-        for (Pair<Integer, Integer> count : counter) {
-            System.out.println("  " + count);
-        }
+        counter.stream().map(count -> "  " + count)
+                .forEach(System.out::println);
         assert counter.size() >= 2;
         System.out.println();
 
@@ -140,9 +137,8 @@ public class Chapter05 {
         }
         System.out.println("The slowest access times are:");
         Set<Tuple> atimes = conn.zrevrangeWithScores("slowest:AccessTime", 0, -1);
-        for (Tuple tuple : atimes) {
-            System.out.println("  " + tuple.getElement() + ", " + tuple.getScore());
-        }
+        atimes.stream().map(tuple -> "  " + tuple.getElement() + ", " + tuple.getScore())
+                .forEach(System.out::println);
         assert atimes.size() >= 10;
         System.out.println();
     }
@@ -180,14 +176,12 @@ public class Chapter05 {
         System.out.println();
 
         System.out.println("Let's lookup some locations!");
-        for (int i = 0; i < 5; i++) {
-            String ip = randomOctet(255) + '.' + randomOctet(256) + '.' + randomOctet(256) + '.' + randomOctet(256);
-            System.out.println(Arrays.toString(findCityByIp(conn, ip)));
-        }
+        IntStream.range(0, 5)
+                .mapToObj(i -> randomOctet(255) + '.' + randomOctet(256) + '.' + randomOctet(256) + '.' + randomOctet(256))
+                .map(ip -> Arrays.toString(findCityByIp(conn, ip))).forEach(System.out::println);
     }
 
-    public void testIsUnderMaintenance(Jedis conn)
-            throws InterruptedException {
+    public void testIsUnderMaintenance(Jedis conn) throws InterruptedException {
         System.out.println("\n----- testIsUnderMaintenance -----");
         System.out.println("Are we under maintenance (we shouldn't be)? " + isUnderMaintenance(conn));
         conn.set("is-under-maintenance", "yes");
@@ -274,30 +268,24 @@ public class Chapter05 {
         }
     }
 
-    public void updateCounter(Jedis conn, String name, int count) {
-        updateCounter(conn, name, count, System.currentTimeMillis() / 1000);
-    }
-
     public static final int[] PRECISION = new int[]{1, 5, 60, 300, 3600, 18000, 86400};
 
     public void updateCounter(Jedis conn, String name, int count, long now) {
         Transaction trans = conn.multi();
-        for (int prec : PRECISION) {
+        Arrays.stream(PRECISION).forEach(prec -> {
             long pnow = (now / prec) * prec;
             String hash = String.valueOf(prec) + ':' + name;
             trans.zadd("known:", 0, hash);
             trans.hincrBy("count:" + hash, String.valueOf(pnow), count);
-        }
+        });
         trans.exec();
     }
 
     public List<Pair<Integer, Integer>> getCounter(Jedis conn, String name, int precision) {
         String hash = String.valueOf(precision) + ':' + name;
-        Map<String, String> data = conn.hgetAll("count:" + hash);
         ArrayList<Pair<Integer, Integer>> results = new ArrayList<>();
-        for (Map.Entry<String, String> entry : data.entrySet()) {
-            results.add(new Pair<>(Integer.parseInt(entry.getKey()), Integer.parseInt(entry.getValue())));
-        }
+        conn.hgetAll("count:" + hash)
+                .forEach((key, value) -> results.add(new Pair<>(Integer.parseInt(key), Integer.parseInt(value))));
 
         // TODO: 2019/8/30
         // Collections.sort(results);
@@ -478,7 +466,6 @@ public class Chapter05 {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        // ignore
     }
 
     public int ipToScore(String ipAddress) {

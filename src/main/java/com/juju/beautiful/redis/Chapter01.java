@@ -22,9 +22,8 @@ public class Chapter01 {
         System.out.println("We posted a new article with id: " + articleId);
         System.out.println("Its HASH looks like:");
         Map<String, String> articleData = conn.hgetAll("article:" + articleId);
-        for (Map.Entry<String, String> entry : articleData.entrySet()) {
-            System.out.println("  " + entry.getKey() + ": " + entry.getValue());
-        }
+        articleData.entrySet().stream().map(entry -> "  " + entry.getKey() + ": " + entry.getValue())
+                .forEach(System.out::println);
 
         System.out.println();
 
@@ -133,11 +132,11 @@ public class Chapter01 {
         Set<String> ids = conn.zrevrange(order, start, end);
         List<Map<String, String>> articles = new ArrayList<>();
         // 逐一读取每个id的文章
-        for (String id : ids) {
+        ids.forEach(id -> {
             Map<String, String> articleData = conn.hgetAll(id);
             articleData.put("id", id);
             articles.add(articleData);
-        }
+        });
 
         return articles;
     }
@@ -151,9 +150,8 @@ public class Chapter01 {
      */
     private void addGroups(Jedis conn, String articleId, String[] toAdd) {
         String article = "article:" + articleId;
-        for (String group : toAdd) {
-            conn.sadd("group:" + group, article);
-        }
+        Arrays.stream(toAdd)
+                .forEach(group -> conn.sadd("group:" + group, article));
     }
 
     private List<Map<String, String>> getGroupArticles(Jedis conn, String group, int page) {
@@ -182,14 +180,14 @@ public class Chapter01 {
     }
 
     private void printArticles(List<Map<String, String>> articles) {
-        for (Map<String, String> article : articles) {
+        articles.forEach(article -> {
             System.out.println("  id: " + article.get("id"));
             for (Map.Entry<String, String> entry : article.entrySet()) {
                 if ("id".equals(entry.getKey())) {
-                    continue;
+                    return;
                 }
                 System.out.println("    " + entry.getKey() + ": " + entry.getValue());
             }
-        }
+        });
     }
 }

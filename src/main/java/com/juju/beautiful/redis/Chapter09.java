@@ -64,15 +64,11 @@ public class Chapter09 {
     }
 
     public void testLongZiplistPerformance(Jedis conn) {
-        System.out.println("\n----- testLongZiplistPerformance -----");
-
         longZiplistPerformance(conn, "test", 5, 10, 10);
         assert conn.llen("test") == 5;
     }
 
     public void testShardKey() {
-        System.out.println("\n----- testShardKey -----");
-
         String base = "test";
         assert "test:0".equals(shardKey(base, "1", 2, 2));
         assert "test:1".equals(shardKey(base, "125", 1000, 100));
@@ -89,49 +85,34 @@ public class Chapter09 {
     }
 
     public void testShardedHash(Jedis conn) {
-        System.out.println("\n----- testShardedHash -----");
-
-        for (int i = 0; i < 50; i++) {
+        IntStream.range(0, 50).forEach(i -> {
             String istr = String.valueOf(i);
             shardHset(conn, "test", "keyname:" + i, istr, 1000, 100);
             assert istr.equals(shardHget(conn, "test", "keyname:" + i, 1000, 100));
             shardHset(conn, "test2", istr, istr, 1000, 100);
             assert istr.equals(shardHget(conn, "test2", istr, 1000, 100));
-        }
+        });
     }
 
     public void testShardedSadd(Jedis conn) {
-        System.out.println("\n----- testShardedSadd -----");
-
-        for (int i = 0; i < 50; i++) {
-            shardSadd(conn, "testx", String.valueOf(i), 50, 50);
-        }
+        IntStream.range(0, 50).forEach(i -> shardSadd(conn, "testx", String.valueOf(i), 50, 50));
         assert conn.scard("testx:0") + conn.scard("testx:1") == 50;
     }
 
     public void testUniqueVisitors(Jedis conn) {
-        System.out.println("\n----- testUniqueVisitors -----");
-
         DAILY_EXPECTED = 10000;
-
-        for (int i = 0; i < 179; i++) {
-            countVisit(conn, UUID.randomUUID().toString());
-        }
+        IntStream.range(0, 179).forEach(i -> countVisit(conn, UUID.randomUUID().toString()));
         assert "179".equals(conn.get("unique:" + ISO_FORMAT.format(new Date())));
 
         conn.flushDB();
         Calendar yesterday = Calendar.getInstance();
         yesterday.add(Calendar.DATE, -1);
         conn.set("unique:" + ISO_FORMAT.format(yesterday.getTime()), "1000");
-        for (int i = 0; i < 183; i++) {
-            countVisit(conn, UUID.randomUUID().toString());
-        }
+        IntStream.range(0, 183).forEach(i -> countVisit(conn, UUID.randomUUID().toString()));
         assert "183".equals(conn.get("unique:" + ISO_FORMAT.format(new Date())));
     }
 
     public void testUserLocation(Jedis conn) {
-        System.out.println("\n----- testUserLocation -----");
-
         int i = 0;
         for (String country : COUNTRIES) {
             if (STATES.containsKey(country)) {
@@ -146,26 +127,23 @@ public class Chapter09 {
         }
 
         Pair<Map<String, Long>, Map<String, Map<String, Long>>> _aggs = aggregateLocation(conn);
-
         long[] userIds = new long[i + 1];
-        for (int j = 0; j <= i; j++) {
-            userIds[j] = j;
-        }
+        IntStream.rangeClosed(0, i).forEach(j -> userIds[j] = j);
         Pair<Map<String, Long>, Map<String, Map<String, Long>>> aggs = aggregateLocationList(conn, userIds);
         assert _aggs.equals(aggs);
 
         Map<String, Long> countries = aggs.getValue0();
         Map<String, Map<String, Long>> states = aggs.getValue1();
-        for (String country : aggs.getValue0().keySet()) {
+        aggs.getValue0().keySet().forEach(country -> {
             if (STATES.containsKey(country)) {
                 assert STATES.get(country).length == countries.get(country);
-                for (String state : STATES.get(country)) {
+                Arrays.stream(STATES.get(country)).forEach(state -> {
                     assert states.get(country).get(state) == 1;
-                }
+                });
             } else {
                 assert countries.get(country) == 1;
             }
-        }
+        });
     }
 
     /**
@@ -189,12 +167,10 @@ public class Chapter09 {
         // 操作开始的时间
         long time = System.currentTimeMillis();
         // passes个元素执行右侧出，左侧入操作
-        for (int p = 0; p < passes; p++) {
-            for (int pi = 0; pi < psize; pi++) {
-                pipeline.rpoplpush(key, key);
-            }
+        IntStream.range(0, passes).forEach(p -> {
+            IntStream.range(0, psize).forEach(pi -> pipeline.rpoplpush(key, key));
             pipeline.sync();
-        }
+        });
 
         // 总字节数 / 总时间
         // 单位时间，移动元素字节数
@@ -276,6 +252,7 @@ public class Chapter09 {
         long id = Long.parseLong(sessionId.replace("-", "").substring(0, 15), 16);
         if (shardSadd(conn, key, String.valueOf(id), expected, SHARD_SIZE) != 0) {
             conn.incr(key);
+
         }
     }
 
@@ -347,7 +324,6 @@ public class Chapter09 {
                 throw new RuntimeException(ioe);
             }
         }
-
         return new Pair<>(countries, states);
     }
 
@@ -356,17 +332,16 @@ public class Chapter09 {
         Map<String, Map<String, Long>> states = new HashMap<>();
 
         Pipeline pipe = conn.pipelined();
-        for (int i = 0; i < userIds.length; i++) {
+        IntStream.range(0, userIds.length).forEach(i -> {
             long userId = userIds[i];
             long shardId = userId / USERS_PER_SHARD;
             int position = (int) (userId % USERS_PER_SHARD);
             int offset = position * 2;
-
             pipe.substr("location:" + shardId, offset, offset + 1);
             if ((i + 1) % 1000 == 0) {
                 updateAggregates(countries, states, pipe.syncAndReturnAll().toString());
             }
-        }
+        });
 
         updateAggregates(countries, states, pipe.syncAndReturnAll().toString());
         return new Pair<>(countries, states);
@@ -386,7 +361,7 @@ public class Chapter09 {
         String country = COUNTRIES[countryIdx];
         Long countryAgg = countries.get(country);
         if (countryAgg == null) {
-            countryAgg = Long.valueOf(0);
+            countryAgg = 0L;
         }
         countries.put(country, countryAgg + 1);
 

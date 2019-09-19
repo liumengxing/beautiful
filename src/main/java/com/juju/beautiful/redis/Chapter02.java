@@ -65,9 +65,8 @@ public class Chapter02 {
         addToCart(conn, token, "itemY", 3);
         Map<String, String> r = conn.hgetAll("cart:" + token);
         System.out.println("Our shopping cart currently has:");
-        for (Map.Entry<String, String> entry : r.entrySet()) {
-            System.out.println("  " + entry.getKey() + ": " + entry.getValue());
-        }
+        r.entrySet().stream().map(entry -> "  " + entry.getKey() + ": " + entry.getValue())
+                .forEach(System.out::println);
         System.out.println();
 
         assert r.size() >= 1;
@@ -84,9 +83,8 @@ public class Chapter02 {
 
         r = conn.hgetAll("cart:" + token);
         System.out.println("Our shopping cart now contains:");
-        for (Map.Entry<String, String> entry : r.entrySet()) {
-            System.out.println("  " + entry.getKey() + ": " + entry.getValue());
-        }
+        r.entrySet().stream().map(entry -> "  " + entry.getKey() + ": " + entry.getValue())
+                .forEach(System.out::println);
         assert r.size() == 0;
     }
 
@@ -96,9 +94,8 @@ public class Chapter02 {
         scheduleRowCache(conn, "itemX", 5);
         System.out.println("Our schedule looks like:");
         Set<Tuple> s = conn.zrangeWithScores("schedule:", 0, -1);
-        for (Tuple tuple : s) {
-            System.out.println("  " + tuple.getElement() + ", " + tuple.getScore());
-        }
+        s.stream().map(tuple -> "  " + tuple.getElement() + ", " + tuple.getScore())
+                .forEach(System.out::println);
         assert s.size() != 0;
 
         System.out.println("We'll start a caching thread that will cache the data...");

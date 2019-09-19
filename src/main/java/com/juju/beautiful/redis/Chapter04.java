@@ -41,9 +41,8 @@ public class Chapter04 {
         Set<String> i = conn.smembers("inventory:" + seller);
 
         System.out.println("The user's inventory has:");
-        for (String member : i) {
-            System.out.println("  " + member);
-        }
+        i.stream().map(member -> "  " + member)
+                .forEach(System.out::println);
         assert i.size() > 0;
         System.out.println();
 
@@ -53,9 +52,8 @@ public class Chapter04 {
         assert l;
         Set<Tuple> r = conn.zrangeWithScores("market:", 0, -1);
         System.out.println("The market contains:");
-        for (Tuple tuple : r) {
-            System.out.println("  " + tuple.getElement() + ", " + tuple.getScore());
-        }
+        r.stream().map(tuple -> "  " + tuple.getElement() + ", " + tuple.getScore())
+                .forEach(System.out::println);
         assert r.size() > 0;
     }
 
@@ -67,9 +65,8 @@ public class Chapter04 {
         conn.hset("users:userY", "funds", "125");
         Map<String, String> r = conn.hgetAll("users:userY");
         System.out.println("The user has some money:");
-        for (Map.Entry<String, String> entry : r.entrySet()) {
-            System.out.println("  " + entry.getKey() + ": " + entry.getValue());
-        }
+        r.entrySet().stream().map(entry -> "  " + entry.getKey() + ": " + entry.getValue())
+                .forEach(System.out::println);
         assert r.size() > 0;
         assert r.get("funds") != null;
         System.out.println();
@@ -80,17 +77,15 @@ public class Chapter04 {
         assert p;
         r = conn.hgetAll("users:userY");
         System.out.println("Their money is now:");
-        for (Map.Entry<String, String> entry : r.entrySet()) {
-            System.out.println("  " + entry.getKey() + ": " + entry.getValue());
-        }
+        r.entrySet().stream().map(entry -> "  " + entry.getKey() + ": " + entry.getValue())
+                .forEach(System.out::println);
         assert r.size() > 0;
 
         String buyer = "userY";
         Set<String> i = conn.smembers("inventory:" + buyer);
         System.out.println("Their inventory is now:");
-        for (String member : i) {
-            System.out.println("  " + member);
-        }
+        i.stream().map(member -> "  " + member)
+                .forEach(System.out::println);
         assert i.size() > 0;
         assert i.contains("itemX");
         assert conn.zscore("market:", "itemX.userX") == null;
@@ -130,8 +125,7 @@ public class Chapter04 {
             trans.zadd("market:", price, item);
             trans.srem(inventory, itemId);
             List<Object> results = trans.exec();
-            // null response indicates that the transaction was aborted due to
-            // the watched key changing.
+            // null response indicates that the transaction was aborted due to the watched key changing.
             if (results == null) {
                 continue;
             }
@@ -181,8 +175,7 @@ public class Chapter04 {
             // 商品从市场移除
             trans.zrem("market:", item);
             List<Object> results = trans.exec();
-            // null response indicates that the transaction was aborted due to
-            // the watched key changing.
+            // null response indicates that the transaction was aborted due to the watched key changing.
             if (results == null) {
                 continue;
             }
@@ -215,11 +208,7 @@ public class Chapter04 {
                     method.invoke(this, conn, "token", "user", "item");
                 }
                 long delta = System.currentTimeMillis() - start;
-                System.out.println(
-                        method.getName() + ' ' +
-                                count + ' ' +
-                                (delta / 1000) + ' ' +
-                                (count / (delta / 1000)));
+                System.out.println(method.getName() + ' ' + count + ' ' + (delta / 1000) + ' ' + (count / (delta / 1000)));
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

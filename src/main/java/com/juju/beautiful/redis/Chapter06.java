@@ -10,6 +10,9 @@ import redis.clients.jedis.ZParams;
 import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -36,15 +39,13 @@ public class Chapter06 {
         conn.del("recent:user");
 
         System.out.println("Let's add a few contacts...");
-        for (int i = 0; i < 10; i++) {
-            addUpdateContact(conn, "user", "contact-" + ((int) Math.floor(i / 3)) + '-' + i);
-        }
+        IntStream.range(0, 10)
+                .forEach(i -> addUpdateContact(conn, "user", "contact-" + ((int) Math.floor(i / 3)) + '-' + i));
         System.out.println("Current recently contacted contacts");
         // redis读取用户的所有最近联系人
         List<String> contacts = conn.lrange("recent:user", 0, -1);
-        for (String contact : contacts) {
-            System.out.println("  " + contact);
-        }
+        contacts.stream().map(contact -> "  " + contact).
+                forEach(System.out::println);
         assert contacts.size() >= 10;
         System.out.println();
 
@@ -52,9 +53,8 @@ public class Chapter06 {
         addUpdateContact(conn, "user", "contact-1-4");
         contacts = conn.lrange("recent:user", 0, 2);
         System.out.println("New top-3 contacts:");
-        for (String contact : contacts) {
-            System.out.println("  " + contact);
-        }
+        contacts.stream().map(contact -> "  " + contact)
+                .forEach(System.out::println);
         assert "contact-1-4".equals(contacts.get(0));
         System.out.println();
 
@@ -62,9 +62,8 @@ public class Chapter06 {
         removeContact(conn, "user", "contact-2-6");
         contacts = conn.lrange("recent:user", 0, -1);
         System.out.println("New contacts:");
-        for (String contact : contacts) {
-            System.out.println("  " + contact);
-        }
+        contacts.stream().map(contact -> "  " + contact)
+                .forEach(System.out::println);
         assert contacts.size() >= 9;
         System.out.println();
 
@@ -73,11 +72,8 @@ public class Chapter06 {
         contacts = fetchAutocompleteList(conn, "user", "c");
         assert all.equals(contacts);
         List<String> equiv = new ArrayList<>();
-        for (String contact : all) {
-            if (contact.startsWith("contact-2-")) {
-                equiv.add(contact);
-            }
-        }
+        all.stream().filter(contact -> contact.startsWith("contact-2-"))
+                .forEach(equiv::add);
         contacts = fetchAutocompleteList(conn, "user", "contact-2-");
         Collections.sort(equiv);
         Collections.sort(contacts);
@@ -88,14 +84,12 @@ public class Chapter06 {
     public void testAddressBookAutocomplete(Jedis conn) {
         System.out.println("\n----- testAddressBookAutocomplete -----");
         conn.del("members:test");
-        System.out.println("the start/end range of 'abc' is: " +
-                Arrays.toString(findPrefixRange("abc")));
+        System.out.println("the start/end range of 'abc' is: " + Arrays.toString(findPrefixRange("abc")));
         System.out.println();
 
         System.out.println("Let's add a few people to the guild");
-        for (String name : new String[]{"jeff", "jenny", "jack", "jennifer"}) {
-            joinGuild(conn, "test", name);
-        }
+        Stream.of("jeff", "jenny", "jack", "jennifer")
+                .forEach(name -> joinGuild(conn, "test", name));
         System.out.println();
         System.out.println("now let's try to find users with names starting with 'je':");
         Set<String> r = autocompleteOnPrefix(conn, "test", "je");
@@ -142,9 +136,9 @@ public class Chapter06 {
         System.out.println("\n----- testCountingSemaphore -----");
         conn.del("testsem", "testsem:owner", "testsem:counter");
         System.out.println("Getting 3 initial semaphores with a limit of 3...");
-        for (int i = 0; i < 3; i++) {
+        IntStream.range(0, 3).forEach(i -> {
             assert acquireFairSemaphore(conn, "testsem", 3, 1000) != null;
-        }
+        });
         System.out.println("Done!");
         System.out.println("Getting one more that should fail...");
         assert acquireFairSemaphore(conn, "testsem", 3, 1000) == null;
@@ -162,9 +156,9 @@ public class Chapter06 {
         System.out.println("Released!");
         System.out.println();
         System.out.println("And let's make sure we can get 3 more!");
-        for (int i = 0; i < 3; i++) {
+        IntStream.range(0, 3).forEach(i -> {
             assert acquireFairSemaphore(conn, "testsem", 3, 1000) != null;
-        }
+        });
         System.out.println("We got them!");
         conn.del("testsem", "testsem:owner", "testsem:counter");
     }
@@ -173,9 +167,9 @@ public class Chapter06 {
         System.out.println("\n----- testDelayedTasks -----");
         conn.del("queue:tqueue", "delayed:");
         System.out.println("Let's start some regular and delayed tasks...");
-        for (long delay : new long[]{0, 500, 0, 1500}) {
+        LongStream.of(0, 500, 0, 1500).forEach(delay -> {
             assert executeLater(conn, "tqueue", "testfn", new ArrayList<>(), delay) != null;
-        }
+        });
         long r = conn.llen("queue:tqueue");
         System.out.println("How many non-delayed tasks are there (should be 2)? " + r);
         assert r == 2;
@@ -205,9 +199,8 @@ public class Chapter06 {
         recipients.add("jenny");
         String chatId = createChat(conn, "joe", recipients, "message 1");
         System.out.println("Now let's send a few messages...");
-        for (int i = 2; i < 5; i++) {
-            sendMessage(conn, chatId, "joe", "message " + i);
-        }
+        IntStream.range(2, 5)
+                .forEach(i -> sendMessage(conn, chatId, "joe", "message " + i));
         System.out.println();
 
         System.out.println("And let's get the messages that are waiting for jeff and jenny...");
@@ -216,13 +209,12 @@ public class Chapter06 {
         System.out.println("They are the same? " + r1.equals(r2));
         assert r1.equals(r2);
         System.out.println("Those messages are:");
-        for (ChatMessages chat : r1) {
+        r1.forEach(chat -> {
             System.out.println("  chatId: " + chat.chatId);
             System.out.println("    messages:");
-            for (Map<String, Object> message : chat.messages) {
-                System.out.println("      " + message);
-            }
-        }
+            chat.messages.stream().map(message -> "      " + message)
+                    .forEach(System.out::println);
+        });
 
         conn.del("ids:chat:", "msgs:1", "ids:1", "seen:joe", "seen:jeff", "seen:jenny");
     }
@@ -252,9 +244,7 @@ public class Chapter06 {
 
         File f3 = File.createTempFile("temp_redis_3_", ".txt.gz");
         f3.deleteOnExit();
-        writer = new OutputStreamWriter(
-                new GZIPOutputStream(
-                        new FileOutputStream(f3)));
+        writer = new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream(f3)));
         Random random = new Random();
         for (int i = 0; i < 1000; i++) {
             writer.write("random line " + Long.toHexString(random.nextLong()) + '\n');
@@ -449,14 +439,12 @@ public class Chapter06 {
                 Thread.currentThread().interrupt();
             }
         }
-
         // null indicates that the lock was not acquired
         return null;
     }
 
     public boolean releaseLock(Jedis conn, String lockName, String identifier) {
         String lockKey = "lock:" + lockName;
-
         while (true) {
             conn.watch(lockKey);
             if (identifier.equals(conn.get(lockKey))) {
@@ -483,10 +471,7 @@ public class Chapter06 {
 
         long now = System.currentTimeMillis();
         Transaction trans = conn.multi();
-        trans.zremrangeByScore(
-                semname.getBytes(),
-                "-inf".getBytes(),
-                String.valueOf(now - timeout).getBytes());
+        trans.zremrangeByScore(semname.getBytes(), "-inf".getBytes(), String.valueOf(now - timeout).getBytes());
         ZParams params = new ZParams();
         params.weights(1, 0);
         trans.zinterstore(czset, params, czset, semname);
@@ -539,14 +524,12 @@ public class Chapter06 {
 
     public String createChat(Jedis conn, String sender, Set<String> recipients, String message, String chatId) {
         recipients.add(sender);
-
         Transaction trans = conn.multi();
-        for (String recipient : recipients) {
+        recipients.forEach(recipient -> {
             trans.zadd("chat:" + chatId, 0, recipient);
             trans.zadd("seen:" + recipient, 0, chatId);
-        }
+        });
         trans.exec();
-
         return sendMessage(conn, chatId, sender, message);
     }
 
@@ -601,8 +584,7 @@ public class Chapter06 {
             String chatId = seen.getElement();
             List<Map<String, Object>> messages = new ArrayList<>();
             for (String messageJson : messageStrings) {
-                Map<String, Object> message = gson.fromJson(messageJson, new TypeToken<Map<String, Object>>() {
-                }.getType());
+                Map<String, Object> message = gson.fromJson(messageJson, new TypeToken<Map<String, Object>>() {}.getType());
                 int messageId = ((Double) message.get("id")).intValue();
                 if (messageId > seenId) {
                     seenId = messageId;
@@ -636,7 +618,6 @@ public class Chapter06 {
     public void processLogsFromRedis(Jedis conn, String id, Callback callback) throws InterruptedException, IOException {
         while (true) {
             List<ChatMessages> fdata = fetchPendingMessages(conn, id);
-
             for (ChatMessages messages : fdata) {
                 for (Map<String, Object> message : messages.messages) {
                     String logFile = (String) message.get("message");
@@ -652,7 +633,6 @@ public class Chapter06 {
                     if (logFile.endsWith(".gz")) {
                         in = new GZIPInputStream(in);
                     }
-
                     try (BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
                         String line;
                         while ((line = reader.readLine()) != null) {
@@ -660,7 +640,6 @@ public class Chapter06 {
                         }
                         callback.callback(null);
                     }
-
                     conn.incr(messages.chatId + logFile + ":done");
                 }
             }
@@ -803,14 +782,11 @@ public class Chapter06 {
         public void run() {
             Deque<File> waiting = new ArrayDeque<>();
             long bytesInRedis = 0;
-
-            Set<String> recipients = new HashSet<>();
-            for (int i = 0; i < count; i++) {
-                recipients.add(String.valueOf(i));
-            }
+            Set<String> recipients = IntStream.range(0, count)
+                    .mapToObj(String::valueOf).collect(Collectors.toSet());
             createChat(conn, "source", recipients, "", channel);
             File[] logFiles = path.listFiles((dir, name) -> name.startsWith("temp_redis"));
-            Arrays.sort(logFiles);
+            Arrays.sort(Objects.requireNonNull(logFiles));
             for (File logFile : logFiles) {
                 long fsize = logFile.length();
                 while ((bytesInRedis + fsize) > limit) {
@@ -844,7 +820,6 @@ public class Chapter06 {
                 }
 
                 sendMessage(conn, channel, "source", logFile.toString());
-
                 bytesInRedis += fsize;
                 waiting.addLast(logFile);
             }
