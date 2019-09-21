@@ -10,7 +10,7 @@ public class Chapter01 {
     private static final int VOTE_SCORE = 432;
     private static final int ARTICLES_PER_PAGE = 25;
 
-    public static final void main(String[] args) {
+    public static void main(String[] args) {
         new Chapter01().run();
     }
 
@@ -30,18 +30,15 @@ public class Chapter01 {
         articleVote(conn, "other_user", "article:" + articleId);
         String votes = conn.hget("article:" + articleId, "votes");
         System.out.println("We voted for the article, it now has votes: " + votes);
-        assert Integer.parseInt(votes) > 1;
 
         System.out.println("The currently highest-scoring articles are:");
         List<Map<String, String>> articles = getArticles(conn, 1);
         printArticles(articles);
-        assert articles.size() >= 1;
 
         addGroups(conn, articleId, new String[]{"new-group"});
         System.out.println("We added the article to a new group, other articles include:");
         articles = getGroupArticles(conn, "new-group", 1);
         printArticles(articles);
-        assert articles.size() >= 1;
     }
 
     /**

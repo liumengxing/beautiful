@@ -9,7 +9,7 @@ import java.net.URL;
 import java.util.*;
 
 public class Chapter02 {
-    public static final void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException {
         new Chapter02().run();
     }
 
@@ -36,7 +36,6 @@ public class Chapter02 {
         String r = checkToken(conn, token);
         System.out.println(r);
         System.out.println();
-        assert r != null;
 
         System.out.println("Let's drop the maximum number of cookies to 0 to clean them out");
         System.out.println("We will start a thread to do the cleaning, while we stop it later");
@@ -52,24 +51,23 @@ public class Chapter02 {
 
         long s = conn.hlen("login:");
         System.out.println("The current number of sessions still available is: " + s);
-        assert s == 0;
     }
 
     public void testShopppingCartCookies(Jedis conn) throws InterruptedException {
-        System.out.println("\n----- testShopppingCartCookies -----");
         String token = UUID.randomUUID().toString();
 
         System.out.println("We'll refresh our session...");
         updateToken(conn, token, "username", "itemX");
+
         System.out.println("And add an item to the shopping cart");
         addToCart(conn, token, "itemY", 3);
+
         Map<String, String> r = conn.hgetAll("cart:" + token);
         System.out.println("Our shopping cart currently has:");
-        r.entrySet().stream().map(entry -> "  " + entry.getKey() + ": " + entry.getValue())
+        r.entrySet().stream()
+                .map(entry -> "  " + entry.getKey() + ": " + entry.getValue())
                 .forEach(System.out::println);
         System.out.println();
-
-        assert r.size() >= 1;
 
         System.out.println("Let's clean out our sessions and carts");
         CleanFullSessionsThread thread = new CleanFullSessionsThread(0);
@@ -83,23 +81,21 @@ public class Chapter02 {
 
         r = conn.hgetAll("cart:" + token);
         System.out.println("Our shopping cart now contains:");
-        r.entrySet().stream().map(entry -> "  " + entry.getKey() + ": " + entry.getValue())
+        r.entrySet().stream()
+                .map(entry -> "  " + entry.getKey() + ": " + entry.getValue())
                 .forEach(System.out::println);
-        assert r.size() == 0;
     }
 
     public void testCacheRows(Jedis conn) throws InterruptedException {
-        System.out.println("\n----- testCacheRows -----");
         System.out.println("First, let's schedule caching of itemX every 5 seconds");
         scheduleRowCache(conn, "itemX", 5);
+
         System.out.println("Our schedule looks like:");
         Set<Tuple> s = conn.zrangeWithScores("schedule:", 0, -1);
         s.stream().map(tuple -> "  " + tuple.getElement() + ", " + tuple.getScore())
                 .forEach(System.out::println);
-        assert s.size() != 0;
 
         System.out.println("We'll start a caching thread that will cache the data...");
-
         CacheRowsThread thread = new CacheRowsThread();
         thread.start();
 
@@ -107,7 +103,6 @@ public class Chapter02 {
         System.out.println("Our cached data looks like:");
         String r = conn.get("inv:itemX");
         System.out.println(r);
-        assert r != null;
         System.out.println();
 
         System.out.println("We'll check again in 5 seconds...");
@@ -116,15 +111,12 @@ public class Chapter02 {
         String r2 = conn.get("inv:itemX");
         System.out.println(r2);
         System.out.println();
-        assert r2 != null;
-        assert !r.equals(r2);
 
         System.out.println("Let's force un-caching");
         scheduleRowCache(conn, "itemX", -1);
         Thread.sleep(1000);
         r = conn.get("inv:itemX");
         System.out.println("The cache was cleared? " + (r == null));
-        assert r == null;
 
         thread.quit();
         Thread.sleep(2000);
@@ -147,13 +139,9 @@ public class Chapter02 {
         System.out.println("We got initial content:\n" + result);
         System.out.println();
 
-        assert result != null;
-
         System.out.println("To test that we've cached the request, we'll pass a bad callback");
         String result2 = cacheRequest(conn, url, null);
         System.out.println("We ended up getting the same response!\n" + result2);
-
-        assert result.equals(result2);
 
         assert !canCache(conn, "http://test.com/");
         assert !canCache(conn, "http://test.com/?item=itemX&_=1234536");
@@ -336,12 +324,7 @@ public class Chapter02 {
                 Set<String> tokenSet = conn.zrange("recent:", 0, endIndex - 1);
                 String[] tokens = tokenSet.toArray(new String[0]);
 
-                ArrayList<String> sessionKeys = new ArrayList<>();
-                for (String token : tokens) {
-                    sessionKeys.add("viewed:" + token);
-                }
-
-                conn.del(sessionKeys.toArray(new String[0]));
+                conn.del(Arrays.stream(tokens).map(token -> "viewed:" + token).toArray(String[]::new));
                 conn.hdel("login:", tokens);
                 conn.zrem("recent:", tokens);
             }

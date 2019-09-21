@@ -16,7 +16,7 @@ import java.util.Set;
  * 2、购买商品
  */
 public class Chapter04 {
-    public static final void main(String[] args) {
+    public static void main(String[] args) {
         new Chapter04().run();
     }
 
@@ -43,18 +43,15 @@ public class Chapter04 {
         System.out.println("The user's inventory has:");
         i.stream().map(member -> "  " + member)
                 .forEach(System.out::println);
-        assert i.size() > 0;
         System.out.println();
 
         System.out.println("Listing the item...");
         boolean l = listItem(conn, item, seller, 10);
         System.out.println("Listing the item succeeded? " + l);
-        assert l;
         Set<Tuple> r = conn.zrangeWithScores("market:", 0, -1);
         System.out.println("The market contains:");
         r.stream().map(tuple -> "  " + tuple.getElement() + ", " + tuple.getScore())
                 .forEach(System.out::println);
-        assert r.size() > 0;
     }
 
     public void testPurchaseItem(Jedis conn) {
@@ -67,28 +64,24 @@ public class Chapter04 {
         System.out.println("The user has some money:");
         r.entrySet().stream().map(entry -> "  " + entry.getKey() + ": " + entry.getValue())
                 .forEach(System.out::println);
-        assert r.size() > 0;
-        assert r.get("funds") != null;
         System.out.println();
 
         System.out.println("Let's purchase an item");
         boolean p = purchaseItem(conn, "userY", "itemX", "userX", 10);
         System.out.println("Purchasing an item succeeded? " + p);
-        assert p;
+
         r = conn.hgetAll("users:userY");
         System.out.println("Their money is now:");
-        r.entrySet().stream().map(entry -> "  " + entry.getKey() + ": " + entry.getValue())
+        r.entrySet().stream()
+                .map(entry -> "  " + entry.getKey() + ": " + entry.getValue())
                 .forEach(System.out::println);
-        assert r.size() > 0;
+
 
         String buyer = "userY";
         Set<String> i = conn.smembers("inventory:" + buyer);
         System.out.println("Their inventory is now:");
         i.stream().map(member -> "  " + member)
                 .forEach(System.out::println);
-        assert i.size() > 0;
-        assert i.contains("itemX");
-        assert conn.zscore("market:", "itemX.userX") == null;
     }
 
     public void testBenchmarkUpdateToken(Jedis conn) {
