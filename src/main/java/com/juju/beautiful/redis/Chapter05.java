@@ -197,7 +197,7 @@ public class Chapter05 {
     public void testConfig(Jedis conn) {
         System.out.println("\n----- testConfig -----");
         System.out.println("Let's set a config and then get a connection from that config...");
-        Map<String, Object> config = new HashMap<String, Object>();
+        Map<String, Object> config = new HashMap<>();
         config.put("db", 15);
         setConfig(conn, "redis", "test", config);
 
@@ -391,7 +391,7 @@ public class Chapter05 {
         return CONFIGS.get(key);
     }
 
-    public static final Map<String, Jedis> REDIS_CONNECTIONS = new HashMap<String, Jedis>();
+    public static final Map<String, Jedis> REDIS_CONNECTIONS = new HashMap<>();
 
     public Jedis redisConnection(String component) {
         Jedis configConn = REDIS_CONNECTIONS.get("config");
@@ -492,10 +492,14 @@ public class Chapter05 {
         return new Gson().fromJson(conn.hget("cityid2city:", cityId), String[].class);
     }
 
+    /**
+     * 清理计数器
+     */
     public class CleanCountersThread extends Thread {
         private Jedis conn;
         private int sampleCount = 100;
         private boolean quit;
+        // 保留开始时间，在多长时间以内的计数器
         private long timeOffset;
 
         CleanCountersThread(int sampleCount, long timeOffset) {
@@ -511,11 +515,13 @@ public class Chapter05 {
 
         @Override
         public void run() {
+            // 清理操作的执行次数
             int passes = 0;
             while (!quit) {
                 long start = System.currentTimeMillis() + timeOffset;
                 int index = 0;
                 while (index < conn.zcard("known:")) {
+                    // 在有序集合中，获得所有的计数器
                     Set<String> hashSet = conn.zrange("known:", index, index);
                     index++;
                     if (hashSet.size() == 0) {

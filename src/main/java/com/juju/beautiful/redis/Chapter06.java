@@ -584,7 +584,8 @@ public class Chapter06 {
             String chatId = seen.getElement();
             List<Map<String, Object>> messages = new ArrayList<>();
             for (String messageJson : messageStrings) {
-                Map<String, Object> message = gson.fromJson(messageJson, new TypeToken<Map<String, Object>>() {}.getType());
+                Map<String, Object> message = gson.fromJson(messageJson, new TypeToken<Map<String, Object>>() {
+                }.getType());
                 int messageId = ((Double) message.get("id")).intValue();
                 if (messageId > seenId) {
                     seenId = messageId;
