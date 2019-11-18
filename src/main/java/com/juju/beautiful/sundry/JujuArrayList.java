@@ -1,4 +1,4 @@
-package com.juju.beautiful.collection;
+package com.juju.beautiful.sundry;
 
 import java.util.Arrays;
 import java.util.stream.IntStream;
