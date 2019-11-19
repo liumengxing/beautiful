@@ -1,4 +1,4 @@
-package com.juju.beautiful.sundry.validator;
+package com.juju.beautiful.validator;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.Validation;
