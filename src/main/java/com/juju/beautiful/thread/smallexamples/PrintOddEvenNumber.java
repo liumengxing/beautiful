@@ -1,4 +1,4 @@
-package com.juju.beautiful.thread;
+package com.juju.beautiful.thread.smallexamples;
 
 /**
  * 两个线程打印奇偶数

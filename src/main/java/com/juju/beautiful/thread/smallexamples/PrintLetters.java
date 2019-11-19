@@ -1,4 +1,4 @@
-package com.juju.beautiful.thread;
+package com.juju.beautiful.thread.smallexamples;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 

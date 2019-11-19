@@ -1,4 +1,4 @@
-package com.juju.beautiful.redis;
+package com.juju.beautiful.redis.redisinaction;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.ZParams;

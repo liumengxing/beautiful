@@ -5,7 +5,7 @@ import redis.clients.jedis.Jedis;
 /**
  * 工作电脑上，redis测试
  */
-public class Windows {
+public class WindowsRedis {
     private static final String REDIS_ADDR = "172.20.181.100";
 
     public static void main(String[] args) {

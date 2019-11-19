@@ -1,4 +1,4 @@
-package com.juju.beautiful.redis;
+package com.juju.beautiful.redis.redisinaction;
 
 import org.javatuples.Pair;
 import redis.clients.jedis.*;

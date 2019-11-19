@@ -1,4 +1,4 @@
-package com.juju.beautiful.redis;
+package com.juju.beautiful.redis.redisinaction;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;

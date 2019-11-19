@@ -1,4 +1,4 @@
-package com.juju.beautiful.redis;
+package com.juju.beautiful.redis.redisinaction;
 
 import com.google.gson.Gson;
 import redis.clients.jedis.Jedis;

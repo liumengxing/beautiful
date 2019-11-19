@@ -1,8 +1,4 @@
-package com.juju.beautiful.unittest;
-
-import com.juju.common.validator.HibernateModel;
-import com.juju.common.validator.ValidatorUtils;
-import org.junit.Test;
+package com.juju.beautiful.sundry.validator;
 
 import java.lang.reflect.Method;
 import java.time.LocalDate;
@@ -10,9 +6,16 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-public class HibernateTest {
-    @Test
-    public void testNotFit() {
+public class HibernateMain {
+    public static void main(String[] args) {
+        HibernateMain main = new HibernateMain();
+        main.testNotFit();
+        main.testFit();
+        main.testLombok();
+        main.testIntegerEquals70();
+    }
+
+    private void testNotFit() {
         try {
             HibernateModel notFitModel = new HibernateModel(null, "122", true, "strBirthday"
                     , -1, LocalDate.parse("3000-02-19"), new LinkedList<>());
@@ -23,8 +26,7 @@ public class HibernateTest {
         }
     }
 
-    @Test
-    public void testFit() {
+    private void testFit() {
         try {
             List<Long> longList = new ArrayList<>();
             longList.add(1L);
@@ -37,15 +39,13 @@ public class HibernateTest {
         }
     }
 
-    @Test
-    public void testLombok() {
+    private void testLombok() {
         HibernateModel noArgsConstructorModel = new HibernateModel();
         noArgsConstructorModel.setName("name");
         System.out.println(noArgsConstructorModel.getName());
     }
 
-    @Test
-    public void testIntegerEquals70() {
+    private void testIntegerEquals70() {
         Method method = null;
         try {
             method = HibernateModel.class.getMethod("integerEquals70", int.class);
