@@ -1,4 +1,4 @@
-package com.juju.beautiful.thread.smallexamples;
+package com.juju.beautiful.thread.example;
 
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
