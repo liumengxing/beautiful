@@ -10,6 +10,7 @@ package com.juju.beautiful.sundry;
 public class FinallyReturn {
     public static void main(String[] args) {
         System.out.println(test2());
+        System.out.println(test3());
         System.out.println(test4());
     }
 
@@ -22,6 +23,17 @@ public class FinallyReturn {
         } finally {
             i = 0;
             return i;
+        }
+    }
+
+    public static int test3() {
+        int i = 1;
+        try {
+            return i;
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            return 0;
         }
     }
 
