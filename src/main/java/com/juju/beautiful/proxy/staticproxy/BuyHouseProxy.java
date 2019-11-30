@@ -25,7 +25,7 @@ public class BuyHouseProxy implements IBuyHouse {
     }
 
     @Override
-    public void decorateHouse() {
-        buyHouse.decorateHouse();
+    public void decorateHouse(String outputStr) {
+        buyHouse.decorateHouse(outputStr);
     }
 }

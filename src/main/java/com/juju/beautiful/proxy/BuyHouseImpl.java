@@ -16,7 +16,8 @@ public class BuyHouseImpl implements IBuyHouse {
     }
 
     @Override
-    public void decorateHouse() {
+    public void decorateHouse(String outputStr) {
         System.out.println("decorate house");
+        System.out.println(outputStr);
     }
 }

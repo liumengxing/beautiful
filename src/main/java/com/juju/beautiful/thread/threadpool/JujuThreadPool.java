@@ -17,6 +17,17 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author juju_liu
  */
 public class JujuThreadPool {
+    public static void main(String[] args) {
+        BlockingQueue queue = new ArrayBlockingQueue(4);
+        JujuThreadPool pool = new JujuThreadPool(3, 5, 1, TimeUnit.SECONDS, queue);
+        for (int i = 0; i < 10; i++) {
+
+        }
+
+        pool.shutdown();
+        logger.info("pool shutdown");
+    }
+
     // region fields
     /**
      * 最小线程数，即核心线程数
@@ -30,6 +41,11 @@ public class JujuThreadPool {
      * 线程需要被回收的时间
      */
     private long keepAliveTime;
+
+    /**
+     * 计时单位
+     */
+    private TimeUnit timeUnit;
     /**
      * 存放线程的阻塞队列
      */
@@ -37,7 +53,7 @@ public class JujuThreadPool {
     /**
      * juju的线程池
      */
-    private volatile Set<JujuThread> jujuThreadPool;
+    private volatile Set<Worker> workers;
     /**
      * 线程池关闭标志，使用atomicboolean，保证原子性
      */
@@ -53,25 +69,24 @@ public class JujuThreadPool {
     // region juju线程池基本函数
 
     /**
-     *
-     * @param minSize
-     * @param maxSize
-     * @param keepAliveTime
-     * @param workQueue
+     * @param minSize       最小线程数
+     * @param maxSize       最大线程数
+     * @param keepAliveTime 非核心线程存活时间
+     * @param workQueue     存放线程的消息队列
      */
-    public JujuThreadPool(int minSize, int maxSize, long keepAliveTime, BlockingQueue<Runnable> workQueue) {
+    public JujuThreadPool(int minSize, int maxSize, long keepAliveTime, TimeUnit timeUnit, BlockingQueue<Runnable> workQueue) {
         this.minSize = minSize;
         this.maxSize = maxSize;
         this.keepAliveTime = keepAliveTime;
+        this.timeUnit = timeUnit;
         this.workQueue = workQueue;
-        this.jujuThreadPool = new ConcurrentHashSet();
+        this.workers = new ConcurrentHashSet();
     }
 
     /**
-     *
-     * @param callable
-     * @param <T>
-     * @return
+     * @param callable 一个可以携带返回值的线程任务
+     * @param <T>      返回值类型
+     * @return 任务执行结果
      */
     public <T> Future<T> submit(Callable<T> callable) {
         FutureTask futureTask = new FutureTask(callable);
@@ -80,8 +95,7 @@ public class JujuThreadPool {
     }
 
     /**
-     *
-     * @param runnable
+     * @param runnable 一个线程任务
      */
     public void execute(Runnable runnable) {
         if (null == runnable) {
@@ -92,16 +106,16 @@ public class JujuThreadPool {
             return;
         }
         taskNum.incrementAndGet();
-        if (jujuThreadPool.size() < minSize) {
-            addThread(runnable);
+        if (workers.size() < minSize) {
+            addWorker(runnable);
             return;
         }
 
         // 写入队列失败，
         if (!workQueue.offer(runnable)) {
             // 创建新线程执行
-            if (jujuThreadPool.size() < maxSize) {
-                addThread(runnable);
+            if (workers.size() < maxSize) {
+                addWorker(runnable);
                 return;
             } else {
                 logger.error(String.format("above maxsize[{%d}]", maxSize));
@@ -118,10 +132,10 @@ public class JujuThreadPool {
      *
      * @param runnable 任务
      */
-    private void addThread(Runnable runnable) {
-        JujuThread thread = new JujuThread(runnable, true);
-        thread.startTask();
-        jujuThreadPool.add(thread);
+    private void addWorker(Runnable runnable) {
+        Worker worker = new Worker(runnable, true);
+        worker.startTask();
+        workers.add(worker);
     }
 
     /**
@@ -130,7 +144,7 @@ public class JujuThreadPool {
      * @return
      */
     public int getWorkerCount() {
-        return jujuThreadPool.size();
+        return workers.size();
     }
 
     /**
@@ -166,22 +180,47 @@ public class JujuThreadPool {
 
     }
 
+    private Runnable getTask() {
+        // 线程池关闭or没有新的任务
+        if (isShutDown.get() && taskNum.get() == 0) {
+            return null;
+        }
+        lock.lock();
+        try {
+            Runnable task = null;
+            if (workQueue.size() > minSize) {
+                task = workQueue.poll(keepAliveTime, timeUnit);
+            } else {
+                task = workQueue.take();
+            }
+            if (task != null) {
+                return task;
+            }
+        } catch (InterruptedException e) {
+            return null;
+        } finally {
+            lock.unlock();
+        }
+        return null;
+    }
+
     /**
      * 关闭所有任务
      */
     private void closeAllTask() {
         logger.info("start close thread");
-        for (JujuThread jujuThread : jujuThreadPool) {
-            jujuThread.closeTask();
+        for (Worker worker : workers) {
+            worker.closeTask();
         }
     }
     // endregion
 
     // region 内部类
+
     /**
      * 内部存放工作线程容器，通过ConcurrentHashMap实现，并发安全。
      *
-     * @param <T>
+     * @param <T> 容器内存放的数据类型，使用Runnable
      */
     private final class ConcurrentHashSet<T> extends AbstractSet<T> {
         private ConcurrentHashMap<T, Object> map = new ConcurrentHashMap<>();
@@ -213,14 +252,14 @@ public class JujuThreadPool {
     }
 
     /**
-     * juju的线程
+     * juju的线程，存放最终放在线程池中运行的线程
      */
-    private final class JujuThread extends Thread {
+    private final class Worker extends Thread {
         private Runnable task;
         private Thread thread;
         private boolean isNew;
 
-        public JujuThread(Runnable task, boolean isNew) {
+        public Worker(Runnable task, boolean isNew) {
             this.task = task;
             this.isNew = isNew;
             thread = this;
@@ -236,7 +275,23 @@ public class JujuThreadPool {
 
         @Override
         public void run() {
-
+            task = null;
+            if (isNew) {
+                task = this.task;
+            }
+            try {
+                while (task != null || (task = getTask()) != null) {
+                    try {
+                        task.run();
+                    } finally {
+                        task = null;
+                        taskNum.decrementAndGet();
+                    }
+                }
+            } finally {
+                workers.remove(this);
+                tryClose(true);
+            }
         }
     }
     // endregion

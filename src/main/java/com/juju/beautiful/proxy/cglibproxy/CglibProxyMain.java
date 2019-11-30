@@ -11,6 +11,6 @@ public class CglibProxyMain {
         IBuyHouse buyHouse = new BuyHouseImpl();
         CglibProxy cglibProxy = new CglibProxy();
         BuyHouseImpl buyHouseCglibProxy = (BuyHouseImpl) cglibProxy.getInstance(buyHouse);
-        buyHouseCglibProxy.buyHouse();
+        buyHouseCglibProxy.decorateHouse("juju");
     }
 }

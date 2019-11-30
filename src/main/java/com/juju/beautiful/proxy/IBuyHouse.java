@@ -19,5 +19,5 @@ public interface IBuyHouse {
     /**
      * decorateHouse
      */
-    void decorateHouse();
+    void decorateHouse(String outputStr);
 }
