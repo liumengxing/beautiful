@@ -64,10 +64,7 @@ public class WindowSlip {
                     // 窗口没有0，并且包含了所有元素
                     // 找到了一个结果
                     ifFind = true;
-                    int thisLength = rightCur + 1 - leftCur;
-                    if (thisLength < finalResult) {
-                        finalResult = thisLength;
-                    }
+                    finalResult = Math.min(rightCur + 1 - leftCur, finalResult);
                     // 窗口宽度 = 颜色个数，并且已经满足条件
                     // 没有比这个更小的结果了，直接退出
                     if (finalResult == colourCount) {
