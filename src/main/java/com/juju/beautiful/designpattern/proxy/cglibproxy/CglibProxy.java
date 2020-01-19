@@ -1,4 +1,4 @@
-package com.juju.beautiful.proxy.cglibproxy;
+package com.juju.beautiful.designpattern.proxy.cglibproxy;
 
 import org.springframework.cglib.proxy.Enhancer;
 import org.springframework.cglib.proxy.MethodInterceptor;

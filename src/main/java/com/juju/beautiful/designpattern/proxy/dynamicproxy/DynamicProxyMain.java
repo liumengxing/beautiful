@@ -1,7 +1,7 @@
-package com.juju.beautiful.proxy.dynamicproxy;
+package com.juju.beautiful.designpattern.proxy.dynamicproxy;
 
-import com.juju.beautiful.proxy.BuyHouseImpl;
-import com.juju.beautiful.proxy.IBuyHouse;
+import com.juju.beautiful.designpattern.proxy.BuyHouseImpl;
+import com.juju.beautiful.designpattern.proxy.IBuyHouse;
 
 import java.lang.reflect.Proxy;
 

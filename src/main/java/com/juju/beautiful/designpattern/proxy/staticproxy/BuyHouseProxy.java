@@ -1,6 +1,6 @@
-package com.juju.beautiful.proxy.staticproxy;
+package com.juju.beautiful.designpattern.proxy.staticproxy;
 
-import com.juju.beautiful.proxy.IBuyHouse;
+import com.juju.beautiful.designpattern.proxy.IBuyHouse;
 
 /**
  * 代理类

@@ -1,4 +1,4 @@
-package com.juju.beautiful.proxy;
+package com.juju.beautiful.designpattern.proxy;
 
 /**
  * 服务实现类

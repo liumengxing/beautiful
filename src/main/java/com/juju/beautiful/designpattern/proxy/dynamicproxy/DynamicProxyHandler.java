@@ -1,4 +1,4 @@
-package com.juju.beautiful.proxy.dynamicproxy;
+package com.juju.beautiful.designpattern.proxy.dynamicproxy;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;

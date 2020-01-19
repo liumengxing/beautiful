@@ -1,7 +1,7 @@
-package com.juju.beautiful.proxy.cglibproxy;
+package com.juju.beautiful.designpattern.proxy.cglibproxy;
 
-import com.juju.beautiful.proxy.BuyHouseImpl;
-import com.juju.beautiful.proxy.IBuyHouse;
+import com.juju.beautiful.designpattern.proxy.BuyHouseImpl;
+import com.juju.beautiful.designpattern.proxy.IBuyHouse;
 
 /**
  * @author juju_liu
