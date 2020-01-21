@@ -1,4 +1,4 @@
-package com.juju.beautiful.validator;
+package com.juju.beautiful.sundry.validator;
 
 import java.lang.reflect.Method;
 import java.time.LocalDate;

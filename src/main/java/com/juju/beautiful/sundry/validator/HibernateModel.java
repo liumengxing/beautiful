@@ -1,4 +1,4 @@
-package com.juju.beautiful.validator;
+package com.juju.beautiful.sundry.validator;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
